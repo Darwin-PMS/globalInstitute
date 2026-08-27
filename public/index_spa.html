@@ -3,26 +3,23 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Global Institute & CAD CAM - Youth Skill Development Institute</title>
-    <meta name="description" content="Youth Skill Development & Research Institute in Gamharia, Jamshedpur. CAD/CAM, CNC, Industrial Skills training."/>
+    <title>Global Institute & CAD CAM - Industrial Training & Professional Certification</title>
+    <meta name="description" content="Build industry-ready skills through expert-led CAD/CAM, CNC, and industrial training programs. Practical learning, certification, and career growth at Gamharia, Jamshedpur."/>
+    <meta name="keywords" content="industrial training, CAD CAM, CNC programming, technical education, skill development, Jamshedpur, Gamharia, AutoCAD, SolidWorks, CATIA"/>
+    <meta property="og:title" content="Global Institute & CAD CAM - Industrial Training & Professional Certification"/>
+    <meta property="og:description" content="Build industry-ready skills through expert-led CAD/CAM, CNC, and industrial training programs."/>
+    <meta property="og:type" content="website"/>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="public/css/style.css"/>
-    <style>
-        .lazy-img{opacity:0;filter:blur(8px);transition:opacity .4s ease,filter .4s ease;background:#f1f3f5}
-        .lazy-img.loaded{opacity:1;filter:none}
-        .lazy-img.lazy-error{opacity:.6;filter:none}
-        .lazy-bg{transition:background-image .4s ease}
-        .lazy-bg:not(.loaded){background-color:#f1f3f5}
-    </style>
 </head>
 <body>
     <!-- Top Announcement Bar -->
     <div id="announcement-bar" class="announcement-bar">
         <span class="material-symbols-outlined icon-sm">campaign</span>
-        Admissions Open for 2025 Sessions. Early Bird Discounts Available.
+        Admissions Open for 2025-26 Sessions. Early Bird Discounts Available.
     </div>
 
     <!-- Desktop Navigation -->
@@ -34,17 +31,19 @@
             </a>
             <div class="nav-links" id="nav-links">
                 <a href="#/" class="nav-link" data-link data-page="home">Home</a>
-                <a href="#/courses" class="nav-link" data-link data-page="courses">Courses</a>
+                <a href="#/about" class="nav-link" data-link data-page="about">About</a>
                 <a href="#/industrial-training" class="nav-link" data-link data-page="industrial-training">Training</a>
+                <a href="#/courses" class="nav-link" data-link data-page="courses">Courses</a>
                 <a href="#/admissions" class="nav-link" data-link data-page="admissions">Admissions</a>
                 <a href="#/gallery" class="nav-link" data-link data-page="gallery">Gallery</a>
-                <a href="#/about" class="nav-link" data-link data-page="about">About</a>
                 <a href="#/contact" class="nav-link" data-link data-page="contact">Contact</a>
             </div>
-            <a href="#/contact" class="nav-cta" data-link>Enquire Now</a>
-            <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
-                <span class="material-symbols-outlined">menu</span>
-            </button>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <a href="#/courses" class="nav-cta" data-link>Explore Courses</a>
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -52,21 +51,25 @@
     <div class="mobile-nav-overlay" id="mobile-nav-overlay">
         <div class="mobile-nav-panel">
             <div class="mobile-nav-header">
-                <span class="font-headline-sm text-primary font-bold">Global Institute</span>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span class="material-symbols-outlined brand-icon" style="color:var(--tertiary);font-variation-settings:'FILL' 1;">precision_manufacturing</span>
+                    <span style="font-family:var(--font-headline);font-size:18px;font-weight:700;color:var(--primary);">Global Institute</span>
+                </div>
                 <button class="mobile-close-btn" id="mobile-close-btn" aria-label="Close menu">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
             <div class="mobile-nav-links">
                 <a href="#/" class="mobile-nav-link" data-link>Home</a>
-                <a href="#/courses" class="mobile-nav-link" data-link>Courses</a>
+                <a href="#/about" class="mobile-nav-link" data-link>About</a>
                 <a href="#/industrial-training" class="mobile-nav-link" data-link>Industrial Training</a>
+                <a href="#/courses" class="mobile-nav-link" data-link>Courses</a>
                 <a href="#/admissions" class="mobile-nav-link" data-link>Admissions</a>
                 <a href="#/gallery" class="mobile-nav-link" data-link>Gallery</a>
-                <a href="#/about" class="mobile-nav-link" data-link>About Us</a>
                 <a href="#/contact" class="mobile-nav-link" data-link>Contact</a>
             </div>
-            <a href="#/contact" class="mobile-nav-cta" data-link>Enquire Now</a>
+            <a href="#/courses" class="mobile-nav-cta" data-link>Explore Courses</a>
+            <a href="#/contact" class="mobile-nav-cta" data-link style="background:transparent;border:1.5px solid var(--outline-variant);color:var(--primary);margin-top:8px;">Enquire Now</a>
         </div>
     </div>
 
@@ -83,20 +86,21 @@
                         <span class="material-symbols-outlined brand-icon">precision_manufacturing</span>
                         Global Institute & CAD CAM
                     </div>
-                    <p class="footer-desc">Empowering the next generation of industrial engineers and designers through professional, hands-on training.</p>
+                    <p class="footer-desc">Empowering the next generation of industrial engineers and designers through professional, hands-on training with industry-standard tools and expert faculty.</p>
                     <div class="footer-location">
                         <span class="material-symbols-outlined icon-sm">location_on</span>
-                        Gamharia, Jamshedpur, Jharkhand
+                        Gamharia Chowk, Jamshedpur, Jharkhand
                     </div>
                     <div class="footer-social">
                         <a href="javascript:void(0)" aria-label="Facebook" class="social-btn"><span class="material-symbols-outlined">language</span></a>
                         <a href="javascript:void(0)" aria-label="Instagram" class="social-btn"><span class="material-symbols-outlined">photo_camera</span></a>
                         <a href="javascript:void(0)" aria-label="YouTube" class="social-btn"><span class="material-symbols-outlined">video_library</span></a>
+                        <a href="javascript:void(0)" aria-label="LinkedIn" class="social-btn"><span class="material-symbols-outlined">work</span></a>
                     </div>
                 </div>
                 <div class="footer-newsletter-col">
                     <h4 class="footer-heading">Stay Updated</h4>
-                    <p style="font-size:14px;opacity:0.7;margin-bottom:12px;">Get the latest updates on courses and offers.</p>
+                    <p style="font-size:14px;opacity:0.7;margin-bottom:12px;">Get the latest updates on courses, workshops, and offers.</p>
                     <form class="footer-newsletter" onsubmit="event.preventDefault();showToast('Subscribed successfully!');">
                         <input type="email" placeholder="Your email address" class="footer-newsletter-input" required/>
                         <button type="submit" class="footer-newsletter-btn">
@@ -115,20 +119,22 @@
                     <h4 class="footer-heading">Quick Links</h4>
                     <ul class="footer-links">
                         <li><a href="#/" data-link><span class="material-symbols-outlined link-icon">home</span>Home</a></li>
+                        <li><a href="#/about" data-link><span class="material-symbols-outlined link-icon">info</span>About Us</a></li>
                         <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">school</span>Courses</a></li>
                         <li><a href="#/industrial-training" data-link><span class="material-symbols-outlined link-icon">engineering</span>Industrial Training</a></li>
                         <li><a href="#/admissions" data-link><span class="material-symbols-outlined link-icon">app_registration</span>Admissions</a></li>
-                        <li><a href="#/about" data-link><span class="material-symbols-outlined link-icon">info</span>About Us</a></li>
+                        <li><a href="#/gallery" data-link><span class="material-symbols-outlined link-icon">photo_library</span>Gallery</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
                     <h4 class="footer-heading">Programs</h4>
                     <ul class="footer-links">
-                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">draw</span>AutoCAD</a></li>
-                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">view_in_ar</span>SolidWorks</a></li>
-                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">category</span>CATIA V5</a></li>
-                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">settings</span>CNC Programming</a></li>
-                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">precision_manufacturing</span>NX CAD</a></li>
+                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">draw</span>AutoCAD Training</a></li>
+                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">view_in_ar</span>SolidWorks Professional</a></li>
+                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">category</span>CATIA V5 Design</a></li>
+                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">settings</span>CNC/VMC Programming</a></li>
+                        <li><a href="#/courses" data-link><span class="material-symbols-outlined link-icon">precision_manufacturing</span>NX CAD Design</a></li>
+                        <li><a href="#/industrial-training" data-link><span class="material-symbols-outlined link-icon">build</span>Industrial Skills</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
@@ -138,13 +144,14 @@
                             <div class="contact-icon-wrap"><span class="material-symbols-outlined">call</span></div>
                             <div>
                                 <a href="tel:+918789961355" class="contact-link">+91 87899 61355</a>
+                                <span class="contact-sub">Mon-Sat, 9AM - 6PM</span>
                             </div>
                         </li>
                         <li>
                             <div class="contact-icon-wrap green"><span class="material-symbols-outlined">chat</span></div>
                             <div>
                                 <a href="https://wa.me/918789961355" target="_blank" class="contact-link">WhatsApp Us</a>
-                                <span class="contact-sub">Chat anytime</span>
+                                <span class="contact-sub">Quick replies within 1 hr</span>
                             </div>
                         </li>
                         <li>
@@ -179,9 +186,9 @@
             <span class="material-symbols-outlined">chat</span>
             <span class="bottom-nav-label">WhatsApp</span>
         </a>
-        <a href="#/contact" class="bottom-nav-item bottom-nav-cta" data-link>
-            <span class="material-symbols-outlined">send</span>
-            <span class="bottom-nav-label">Enquire</span>
+        <a href="#/courses" class="bottom-nav-item bottom-nav-cta" data-link>
+            <span class="material-symbols-outlined">school</span>
+            <span class="bottom-nav-label">Courses</span>
         </a>
     </nav>
 
@@ -192,7 +199,7 @@
     <div class="modal-overlay" id="enquiry-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="font-headline-sm">Quick Enquiry</h3>
+                <h3 class="modal-title">Quick Enquiry</h3>
                 <button class="modal-close" onclick="document.getElementById('enquiry-modal').classList.remove('active')">
                     <span class="material-symbols-outlined">close</span>
                 </button>

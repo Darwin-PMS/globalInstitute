@@ -252,42 +252,71 @@
             ]);
             const fallbackImg = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBLj2Kf6ZGZV8LDP7C5AUQhYyWTGQ1WeyyNvZFpLFeB0pg6JYPV3k4axq4Ov1HnzPxEJ-FVySO3WtGfEkn5X2Lz63LbxAPlIqis9wbqsc0X9KSbPH8_ElkwjUO0nN2JvbeTBLW09tgZE3MFpUOQclq7n3KmOl9szN7KTLtDK3XzfNJsofgblkdEVC6kipAg5I7dFDxfMRqYEQR9pjl0HvMha6kom_xDZs5ArfZ0ocyXa6XPDTILWon7WQ';
             const featuredHtml = (courses.length ? courses.slice(0, 3) : [
-                {title:'AutoCAD Masterclass',category_slug:'cad-cam',short_description:'Comprehensive training in 2D drafting and 3D modeling.',duration:'6 Weeks',level:'Beginner',image:fallbackImg,slug:'autocad-masterclass'},
-                {title:'SolidWorks Professional',category_slug:'cad-cam',short_description:'Advanced parametric modeling and simulation.',duration:'8 Weeks',level:'Intermediate',image:'https://lh3.googleusercontent.com/aida-public/AB6AXuAUEcOJIvpM1N3s9EtbS36uUfpUrp0qDbTKybdcQ4TvT5L-6WwKkSIB7ZJaLq_tH5Ts2vuUzgkEp0gsiJe3h9BGpLZPKjbi7Fyg8ZUs6NoRlDRCFbe53zXS3nyJ2RC-uWqg8ORxNZ0u188WLUbrjIt-pRBD44Mn192Ef8gxR4yj0eeQMEVFsU5j66vY4qdSVbF3nTIfsWhcCLFmHvLyiHLZRXJs3D4V4Xb3Xh0EKyu7MeWmLaFW_AI9ng',slug:'solidworks-professional'},
-                {title:'CNC/VMC Programming',category_slug:'cnc',short_description:'Hands-on G-code and M-code programming for VMC.',duration:'3 Months',level:'Advanced',image:'https://lh3.googleusercontent.com/aida-public/AB6AXuA6zw1FYrzMP34yVaZOjU7ggUYyO7pg_c_YuHKoagvM3msiXT-g_mh5s-xv9ZaA0Y04_bNPkouwOJnk71NYK75C3ec0NwJyUNgOmuGPpGSCk0ANBPihmym80hg9DsexWLGNuw7J0UoG7ISiymUw-Xo-kkNCSZNG31Q7ftft8O3DOvjVKCrCIdkABfwiDDmnDYd82YjkigsM6QpmeZOLs1xRg9j_XTdQqLZ8lc_vuu3uCFOH4qhOd8jOkQ',slug:'cnc-vmc-programming'}
+                {title:'AutoCAD Masterclass',category_slug:'cad-cam',short_description:'Comprehensive training in 2D drafting and 3D modeling for engineering applications.',duration:'6 Weeks',level:'Beginner',image:fallbackImg,slug:'autocad-masterclass'},
+                {title:'SolidWorks Professional',category_slug:'cad-cam',short_description:'Advanced parametric modeling, assembly design, and simulation.',duration:'8 Weeks',level:'Intermediate',image:'https://lh3.googleusercontent.com/aida-public/AB6AXuAUEcOJIvpM1N3s9EtbS36uUfpUrp0qDbTKybdcQ4TvT5L-6WwKkSIB7ZJaLq_tH5Ts2vuUzgkEp0gsiJe3h9BGpLZPKjbi7Fyg8ZUs6NoRlDRCFbe53zXS3nyJ2RC-uWqg8ORxNZ0u188WLUbrjIt-pRBD44Mn192Ef8gxR4yj0eeQMEVFsU5j66vY4qdSVbF3nTIfsWhcCLFmHvLyiHLZRXJs3D4V4Xb3Xh0EKyu7MeWmLaFW_AI9ng',slug:'solidworks-professional'},
+                {title:'CNC/VMC Programming',category_slug:'cnc',short_description:'Hands-on G-code and M-code programming for Vertical Machining Centers.',duration:'3 Months',level:'Advanced',image:'https://lh3.googleusercontent.com/aida-public/AB6AXuA6zw1FYrzMP34yVaZOjU7ggUYyO7pg_c_YuHKoagvM3msiXT-g_mh5s-xv9ZaA0Y04_bNPkouwOJnk71NYK75C3ec0NwJyUNgOmuGPpGSCk0ANBPihmym80hg9DsexWLGNuw7J0UoG7ISiymUw-Xo-kkNCSZNG31Q7ftft8O3DOvjVKCrCIdkABfwiDDmnDYd82YjkigsM6QpmeZOLs1xRg9j_XTdQqLZ8lc_vuu3uCFOH4qhOd8jOkQ',slug:'cnc-vmc-programming'}
             ]).map(c => Pages._courseCard(c.title, c.category_slug || 'cad-cam', c.short_description || c.description?.substring(0,100) || '', [c.duration || '6 Weeks', c.level || 'Beginner'].filter(Boolean), c.image || fallbackImg)).join('');
             const testimonialHtml = (testimonials.length ? testimonials : [
-                {student_name:'Rahul Sharma',content:'The SolidWorks course completely transformed my career. I got placed within 2 months.',designation:'SolidWorks Professional'},
-                {student_name:'Anita Desai',content:'Hands-on CNC training with real machines. The faculty understands what industry needs.',designation:'CNC/VMC Programming'},
-                {student_name:'Vikram Singh',content:'Best institute in Jamshedpur for CAD/CAM training. World-class infrastructure.',designation:'AutoCAD Masterclass'}
-            ]).map(t => `<div class="testimonial-card"><div style="color:var(--tertiary);font-size:18px;margin-bottom:12px;">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p class="testimonial-text">"${t.content}"</p><div class="testimonial-author"><div class="testimonial-avatar">${(t.student_name||'S').charAt(0)}</div><div><div class="testimonial-name">${t.student_name}</div><div class="testimonial-course">${t.designation||''}</div></div></div></div>`).join('');
+                {student_name:'Rahul Sharma',content:'The SolidWorks course completely transformed my career. I got placed within 2 months of completing the program.',course:'SolidWorks Professional'},
+                {student_name:'Anita Desai',content:'Hands-on CNC training with real machines. The faculty truly understands what industry needs from fresh graduates.',course:'CNC/VMC Programming'},
+                {student_name:'Vikram Singh',content:'Best institute in Jamshedpur for CAD/CAM training. World-class infrastructure and truly expert trainers.',course:'AutoCAD Masterclass'}
+            ]).map(t => `<div class="testimonial-card reveal"><div class="testimonial-stars"><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span></div><p class="testimonial-text">"${t.content}"</p><div class="testimonial-author"><div class="testimonial-avatar">${(t.student_name||'S').charAt(0)}</div><div><div class="testimonial-name">${t.student_name}</div><div class="testimonial-course">${t.course||t.designation||''}</div></div></div></div>`).join('');
             const faqHtml = (faqs.length ? faqs.slice(0,5) : [
-                {question:'What courses do you offer?',answer:'We offer AutoCAD, SolidWorks, CATIA V5, NX CAD, CNC/VMC Programming, and Industrial Training programs.'},
-                {question:'Is there a hostel facility?',answer:'Yes, we provide separate hostel facilities for boys and girls with strict security and mess facilities.'},
-                {question:'Do you provide placement assistance?',answer:'Yes, we provide dedicated placement assistance connecting graduates with leading employers.'},
-                {question:'What is the eligibility criteria?',answer:'Minimum 10th Standard pass with Science & Mathematics. Age limit: 16 to 24 years.'}
-            ]).map((f,i) => `<div class="faq-item" data-faq="${i}"><button class="faq-question" onclick="toggleFaq(${i})"><span>${f.question}</span><span class="faq-icon"><span class="material-symbols-outlined" style="font-size:20px;">expand_more</span></span></button><div class="faq-answer"><div class="faq-answer-inner">${f.answer}</div></div></div>`).join('');
+                {question:'What courses do you offer?',answer:'We offer AutoCAD, SolidWorks, CATIA V5, NX CAD, CNC/VMC Programming, and Industrial Training programs designed for career readiness.'},
+                {question:'Who can join these programs?',answer:'Engineering students, diploma holders, ITI graduates, fresh graduates, and working professionals looking to upskill can join our programs.'},
+                {question:'Is training online or offline?',answer:'We offer in-person hands-on training at our Gamharia campus with modern labs and equipment. Some theory modules may be available online.'},
+                {question:'Do you provide certificates?',answer:'Yes, all our programs include industry-recognized certification upon successful completion, validating your skills for employers.'},
+                {question:'Is placement assistance available?',answer:'Yes, we provide dedicated placement assistance including resume building, interview preparation, and connecting graduates with leading employers.'}
+            ]).map((f,i) => `<div class="faq-item" data-faq="${i}"><button class="faq-question"><span>${f.question}</span><span class="faq-icon"><span class="material-symbols-outlined" style="font-size:20px;">expand_more</span></span></button><div class="faq-answer"><div class="faq-answer-inner">${f.answer}</div></div></div>`).join('');
             const app = document.getElementById('app');
             app.innerHTML = `
                 <!-- Hero Section -->
-                <section class="hero blueprint-dark" style="min-height:auto;padding:100px 0 60px;">
-                    <div class="container" style="display:flex;flex-direction:column;gap:32px;align-items:center;text-align:center;position:relative;z-index:10;">
-                        <div class="hero-content" style="display:flex;flex-direction:column;gap:var(--space-lg);align-items:center;text-align:center;">
-                            <div class="hero-badge" style="background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 20px;display:inline-flex;align-items:center;gap:10px;font-family:var(--font-label);font-size:var(--text-label);text-transform:uppercase;letter-spacing:0.05em;color:var(--secondary-fixed);width:fit-content;">
-                                <span style="width:8px;height:8px;border-radius:50%;background:var(--secondary-fixed);animation:pulse 2s infinite;display:inline-block;"></span>
+                <section class="hero">
+                    <div class="hero-bg-pattern"></div>
+                    <div class="container">
+                        <div class="hero-content">
+                            <div class="hero-badge">
+                                <span class="hero-badge-dot"></span>
                                 Industrial Technical Training
                             </div>
-                            <h1 class="hero-title" style="font-family:var(--font-display);font-size:var(--text-display-lg-mobile);line-height:var(--lh-display-mobile);font-weight:700;color:var(--primary-fixed-dim);max-width:800px;">Build Job-Ready Technical Skills for Your Future</h1>
-                            <p class="hero-desc" style="font-size:var(--text-body-lg);line-height:var(--lh-body-lg);color:var(--on-primary-container);max-width:600px;">Master industry-standard CAD/CAM, CNC, and industrial skills through hands-on training with expert faculty and modern equipment.</p>
-                            <div class="hero-actions" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-                                <a href="#/courses" class="btn btn-secondary" data-link>Explore Courses</a>
-                                <a href="#/contact" class="btn btn-outline-light" data-link>Enquire Now</a>
+                            <h1 class="hero-title">Build <span class="hero-title-accent">Industry-Ready Skills.</span> Build Your Career.</h1>
+                            <p class="hero-desc">Gain practical industrial skills through expert-led training, hands-on learning, certification programs, and career-focused education.</p>
+                            <div class="hero-actions">
+                                <a href="#/courses" class="btn btn-secondary btn-lg" data-link>Explore Training Programs</a>
+                                <a href="#/contact" class="btn btn-outline-light btn-lg" data-link>Talk to an Expert</a>
+                            </div>
+                            <div class="hero-stats-row">
+                                <div>
+                                    <div class="hero-stat-value">10+</div>
+                                    <div class="hero-stat-label">Years Experience</div>
+                                </div>
+                                <div>
+                                    <div class="hero-stat-value">500+</div>
+                                    <div class="hero-stat-label">Students Trained</div>
+                                </div>
+                                <div>
+                                    <div class="hero-stat-value">25+</div>
+                                    <div class="hero-stat-label">Programs</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="hero-image-frame" style="position:relative;max-width:600px;width:100%;display:none;">
-                            <div style="position:absolute;top:-16px;right:-16px;width:80px;height:80px;border:3px solid var(--tertiary);opacity:0.6;transform:rotate(12deg);border-radius:8px;z-index:0;"></div>
-                            <div class="hero-image-inner" style="position:relative;z-index:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:8px;overflow:hidden;">
-                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCythYlnJpGxwRhHLon3XUJ-K4Wa05-lM4_FG6EdjnN0ksxHBdABnavkHz6BAtTljSNUov-9fxxzn2DUKf0DT9VCpx7BU7wV_yJnENjwcOSSY9UIrjTXkg7dwwanjdr6soUa-yHg9cezWv8a6B5a39TGTVJkU1d_IEl_ukUJxT9OxKZzAEpACRKrcNDRGLE9LqL54QurPhyVELLJL_cCRxlC928q_II-9q3JqjoDG4QBvgdipYW3SzQxA" alt="Student with CNC machine" style="border-radius:8px;width:100%;display:block;"/>
+                        <div class="hero-visual">
+                            <div class="hero-visual-card">
+                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCythYlnJpGxwRhHLon3XUJ-K4Wa05-lM4_FG6EdjnN0ksxHBdABnavkHz6BAtTljSNUov-9fxxzn2DUKf0DT9VCpx7BU7wV_yJnENjwcOSSY9UIrjTXkg7dwwanjdr6soUa-yHg9cezWv8a6B5a39TGTVJkU1d_IEl_ukUJxT9OxKZzAEpACRKrcNDRGLE9LqL54QurPhyVELLJL_cCRxlC928q_II-9q3JqjoDG4QBvgdipYW3SzQxA" alt="Student working with CNC machine in industrial training lab" loading="eager"/>
+                            </div>
+                            <div class="hero-visual-float hero-visual-float-1">
+                                <span class="material-symbols-outlined" style="color:var(--secondary);font-size:24px;">workspace_premium</span>
+                                <div>
+                                    <div style="font-family:var(--font-headline);font-size:14px;font-weight:700;color:var(--primary);">Certified Programs</div>
+                                    <div style="font-size:11px;color:var(--on-surface-variant);">Industry-Recognized</div>
+                                </div>
+                            </div>
+                            <div class="hero-visual-float hero-visual-float-2">
+                                <span class="material-symbols-outlined" style="color:var(--tertiary);font-size:24px;">engineering</span>
+                                <div>
+                                    <div style="font-family:var(--font-headline);font-size:14px;font-weight:700;color:var(--primary);">Hands-On Learning</div>
+                                    <div style="font-size:11px;color:var(--on-surface-variant);">Practical Training</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -296,43 +325,76 @@
                 <!-- Trust Bar -->
                 <section class="trust-bar">
                     <div class="trust-items">
-                        <div class="trust-item"><span class="material-symbols-outlined">school</span> 500+ Students Trained</div>
-                        <div class="trust-item"><span class="material-symbols-outlined">engineering</span> Industry-Ready Curriculum</div>
-                        <div class="trust-item"><span class="material-symbols-outlined">workspace_premium</span> Certified Programs</div>
-                        <div class="trust-item"><span class="material-symbols-outlined">handshake</span> Placement Assistance</div>
-                        <div class="trust-item"><span class="material-symbols-outlined">location_on</span> Gamharia, Jamshedpur</div>
+                        <div class="trust-item">
+                            <span class="material-symbols-outlined">schedule</span>
+                            <div>
+                                <div class="trust-item-value">10+</div>
+                                <div>Years Experience</div>
+                            </div>
+                        </div>
+                        <div class="trust-item">
+                            <span class="material-symbols-outlined">school</span>
+                            <div>
+                                <div class="trust-item-value">500+</div>
+                                <div>Students Trained</div>
+                            </div>
+                        </div>
+                        <div class="trust-item">
+                            <span class="material-symbols-outlined">menu_book</span>
+                            <div>
+                                <div class="trust-item-value">25+</div>
+                                <div>Programs</div>
+                            </div>
+                        </div>
+                        <div class="trust-item">
+                            <span class="material-symbols-outlined">workspace_premium</span>
+                            <div>
+                                <div class="trust-item-value">95%</div>
+                                <div>Satisfaction</div>
+                            </div>
+                        </div>
+                        <div class="trust-item">
+                            <span class="material-symbols-outlined">location_on</span>
+                            <div>
+                                <div class="trust-item-value">Gamharia</div>
+                                <div>Jamshedpur</div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
                 <!-- Training Categories -->
                 <section class="section">
                     <div class="container">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">category</span> Our Domains
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">Training Categories</h2>
+                        <div class="section-header reveal">
+                            <div class="section-label">Our Domains</div>
+                            <h2 class="section-title">Training Built Around Real Industry Skills</h2>
+                            <p class="section-desc">Explore our comprehensive range of industrial training programs designed to make you job-ready.</p>
                         </div>
-                        <div class="grid-4" style="margin-top:var(--space-lg);">
-                            <div class="category-card" onclick="location.hash='#/courses'">
-                                <span class="material-symbols-outlined">precision_manufacturing</span>
+                        <div class="grid-4">
+                            <div class="category-card reveal reveal-delay-1" onclick="location.hash='#/courses'">
+                                <div class="category-card-icon"><span class="material-symbols-outlined">precision_manufacturing</span></div>
                                 <h3>CAD/CAM</h3>
                                 <p>AutoCAD, SolidWorks, CATIA, NX CAD</p>
+                                <div class="category-card-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
                             </div>
-                            <div class="category-card" onclick="location.hash='#/industrial-training'">
-                                <span class="material-symbols-outlined">settings</span>
+                            <div class="category-card reveal reveal-delay-2" onclick="location.hash='#/industrial-training'">
+                                <div class="category-card-icon"><span class="material-symbols-outlined">settings</span></div>
                                 <h3>CNC Programming</h3>
                                 <p>CNC, VMC, HMC Operations</p>
+                                <div class="category-card-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
                             </div>
-                            <div class="category-card" onclick="location.hash='#/industrial-training'">
-                                <span class="material-symbols-outlined">build</span>
+                            <div class="category-card reveal reveal-delay-3" onclick="location.hash='#/industrial-training'">
+                                <div class="category-card-icon"><span class="material-symbols-outlined">build</span></div>
                                 <h3>Industrial Skills</h3>
                                 <p>Fabrication, Sheet Metal, Reverse Engineering</p>
+                                <div class="category-card-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
                             </div>
-                            <div class="category-card" onclick="location.hash='#/courses'">
-                                <span class="material-symbols-outlined">computer</span>
+                            <div class="category-card reveal reveal-delay-4" onclick="location.hash='#/courses'">
+                                <div class="category-card-icon"><span class="material-symbols-outlined">computer</span></div>
                                 <h3>Computer Skills</h3>
                                 <p>MS Office, Tally, Programming</p>
+                                <div class="category-card-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
                             </div>
                         </div>
                     </div>
@@ -341,47 +403,121 @@
                 <!-- Featured Courses -->
                 <section class="section" style="background:var(--surface-container-low);">
                     <div class="container">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">star</span> Most Popular
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">Featured Courses</h2>
+                        <div class="section-header reveal">
+                            <div class="section-label">Most Popular</div>
+                            <h2 class="section-title">Featured Courses</h2>
+                            <p class="section-desc">Discover our most sought-after programs trusted by hundreds of students.</p>
                         </div>
-                        <div class="grid-3" style="margin-top:var(--space-lg);">
+                        <div class="grid-3">
                             ${featuredHtml}
                         </div>
-                        <div style="text-align:center; margin-top:var(--space-lg);">
-                            <a href="#/courses" class="btn btn-outline" data-link>View All Courses</a>
+                        <div style="text-align:center;margin-top:var(--space-xl);" class="reveal">
+                            <a href="#/courses" class="btn btn-primary" data-link>View All Courses <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span></a>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Learning Journey -->
+                <section class="section">
+                    <div class="container">
+                        <div class="section-header reveal" style="text-align:center;">
+                            <div class="section-label" style="justify-content:center;">Your Path</div>
+                            <h2 class="section-title">The Learning Journey</h2>
+                            <p class="section-desc" style="margin-left:auto;margin-right:auto;">A structured path from learning to career growth.</p>
+                        </div>
+                        <div class="journey-timeline reveal">
+                            <div class="journey-step">
+                                <span class="material-symbols-outlined">menu_book</span>
+                                <div class="journey-step-number">01</div>
+                                <div class="journey-step-line"></div>
+                                <h3>Learn</h3>
+                                <p>Understand fundamentals from expert trainers</p>
+                            </div>
+                            <div class="journey-step">
+                                <span class="material-symbols-outlined">science</span>
+                                <div class="journey-step-number">02</div>
+                                <div class="journey-step-line"></div>
+                                <h3>Practice</h3>
+                                <p>Work with industry-standard tools and equipment</p>
+                            </div>
+                            <div class="journey-step">
+                                <span class="material-symbols-outlined">construction</span>
+                                <div class="journey-step-number">03</div>
+                                <div class="journey-step-line"></div>
+                                <h3>Build</h3>
+                                <p>Complete real-world industrial projects</p>
+                            </div>
+                            <div class="journey-step">
+                                <span class="material-symbols-outlined">workspace_premium</span>
+                                <div class="journey-step-number">04</div>
+                                <div class="journey-step-line"></div>
+                                <h3>Certify</h3>
+                                <p>Earn industry-recognized certification</p>
+                            </div>
+                            <div class="journey-step">
+                                <span class="material-symbols-outlined">trending_up</span>
+                                <div class="journey-step-number">05</div>
+                                <h3>Grow</h3>
+                                <p>Advance your career with new skills</p>
+                            </div>
                         </div>
                     </div>
                 </section>
 
                 <!-- Why Choose Us -->
-                <section class="section">
+                <section class="section" style="background:var(--surface-container-low);">
                     <div class="container">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">verified</span> Why Us
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">Why Choose Global Institute?</h2>
+                        <div class="section-header reveal">
+                            <div class="section-label">Why Us</div>
+                            <h2 class="section-title">Why Professionals Choose Our Training</h2>
+                            <p class="section-desc">We combine industry expertise with practical learning to deliver real career outcomes.</p>
                         </div>
-                        <div class="grid-2" style="margin-top:var(--space-lg);">
-                            <div class="why-card">
-                                <div class="why-card-icon"><span class="material-symbols-outlined">factory</span></div>
-                                <div><h3>Shop-Floor Simulation</h3><p>Training in environments mirroring modern production facilities, not standard classrooms.</p></div>
+                        <div class="grid-2">
+                            <div class="why-card reveal reveal-delay-1">
+                                <div class="why-card-icon"><span class="material-symbols-outlined">precision_manufacturing</span></div>
+                                <div><h3>Industry-Oriented Curriculum</h3><p>Training designed around practical industry requirements, not just theory.</p></div>
                             </div>
-                            <div class="why-card">
-                                <div class="why-card-icon"><span class="material-symbols-outlined">verified</span></div>
-                                <div><h3>Industry Standard Tools</h3><p>Learn on the exact software and hardware used by top-tier employers.</p></div>
+                            <div class="why-card reveal reveal-delay-2">
+                                <div class="why-card-icon"><span class="material-symbols-outlined">build</span></div>
+                                <div><h3>Hands-On Learning</h3><p>Focus on practical implementation with real equipment and software.</p></div>
                             </div>
-                            <div class="why-card">
+                            <div class="why-card reveal reveal-delay-3">
                                 <div class="why-card-icon"><span class="material-symbols-outlined">groups</span></div>
-                                <div><h3>Expert Faculty</h3><p>Learn from industry professionals with real-world manufacturing experience.</p></div>
+                                <div><h3>Experienced Trainers</h3><p>Learn from instructors with real-world manufacturing and design expertise.</p></div>
                             </div>
-                            <div class="why-card">
-                                <div class="why-card-icon"><span class="material-symbols-outlined">work</span></div>
-                                <div><h3>Placement Assistance</h3><p>Dedicated career support connecting graduates with leading employers.</p></div>
+                            <div class="why-card reveal reveal-delay-4">
+                                <div class="why-card-icon"><span class="material-symbols-outlined">workspace_premium</span></div>
+                                <div><h3>Industry Certification</h3><p>Build credible proof of your skills that employers recognize.</p></div>
                             </div>
+                            <div class="why-card reveal reveal-delay-1">
+                                <div class="why-card-icon"><span class="material-symbols-outlined">trending_up</span></div>
+                                <div><h3>Career Focus</h3><p>Training aligned with employment opportunities and professional growth.</p></div>
+                            </div>
+                            <div class="why-card reveal reveal-delay-2">
+                                <div class="why-card-icon"><span class="material-symbols-outlined">schedule</span></div>
+                                <div><h3>Flexible Learning</h3><p>Batch timings designed for students and working professionals.</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Industry Connection -->
+                <section class="section">
+                    <div class="container" style="text-align:center;">
+                        <div class="section-header reveal" style="text-align:center;">
+                            <div class="section-label" style="justify-content:center;">Industry Aligned</div>
+                            <h2 class="section-title">Training Aligned With Industry Requirements</h2>
+                            <p class="section-desc" style="margin-left:auto;margin-right:auto;">Our programs connect education with real industrial sectors and technologies.</p>
+                        </div>
+                        <div class="industry-tags reveal">
+                            <div class="industry-tag"><span class="material-symbols-outlined">precision_manufacturing</span> Manufacturing</div>
+                            <div class="industry-tag"><span class="material-symbols-outlined">engineering</span> Engineering</div>
+                            <div class="industry-tag"><span class="material-symbols-outlined">directions_car</span> Automotive</div>
+                            <div class="industry-tag"><span class="material-symbols-outlined">domain</span> Construction</div>
+                            <div class="industry-tag"><span class="material-symbols-outlined">computer</span> IT & Design</div>
+                            <div class="industry-tag"><span class="material-symbols-outlined">settings</span> Automation</div>
+                            <div class="industry-tag"><span class="material-symbols-outlined">flight</span> Aerospace</div>
+                            <div class="industry-tag"><span class="material-symbols-outlined">electric_bolt</span> Electrical</div>
                         </div>
                     </div>
                 </section>
@@ -389,13 +525,12 @@
                 <!-- Testimonials -->
                 <section class="section" style="background:var(--surface-container-low);">
                     <div class="container">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;text-align:left;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">reviews</span> Testimonials
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">What Our Students Say</h2>
+                        <div class="section-header reveal">
+                            <div class="section-label">Testimonials</div>
+                            <h2 class="section-title">What Our Students Say</h2>
+                            <p class="section-desc">Real stories from students who transformed their careers.</p>
                         </div>
-                        <div class="grid-3" style="margin-top:var(--space-lg);">
+                        <div class="grid-3">
                             ${testimonialHtml}
                         </div>
                     </div>
@@ -404,27 +539,25 @@
                 <!-- FAQs -->
                 <section class="section">
                     <div class="container" style="max-width:800px;">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;text-align:left;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">help</span> FAQs
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">Frequently Asked Questions</h2>
+                        <div class="section-header reveal" style="text-align:center;">
+                            <div class="section-label" style="justify-content:center;">FAQs</div>
+                            <h2 class="section-title">Frequently Asked Questions</h2>
+                            <p class="section-desc" style="margin-left:auto;margin-right:auto;">Answers to common questions about our programs.</p>
                         </div>
-                        <div style="display:flex;flex-direction:column;gap:12px;margin-top:var(--space-lg);">
+                        <div style="display:flex;flex-direction:column;gap:0;margin-top:var(--space-lg);">
                             ${faqHtml}
                         </div>
                     </div>
                 </section>
 
                 <!-- CTA Section -->
-                <section class="section cta-section">
-                    <div class="blueprint-dark" style="position:absolute;inset:0;opacity:0.3;"></div>
+                <section class="cta-section">
                     <div class="container">
                         <div class="cta-inner">
-                            <h2 class="section-title" style="margin-bottom:var(--space-md);">Ready to Start Your Technical Career?</h2>
-                            <p class="section-desc">Join the premier institution for advanced industrial training in Jamshedpur. Limited seats available for 2025 batch.</p>
+                            <h2 class="section-title">Ready to Build Your Industry-Ready Skills?</h2>
+                            <p class="section-desc">Choose the right training program and take the next step toward your professional goals.</p>
                             <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:var(--space-lg);">
-                                <a href="#/admissions" class="btn btn-secondary btn-lg" data-link>Apply Now</a>
+                                <a href="#/courses" class="btn btn-secondary btn-lg" data-link>Explore Courses</a>
                                 <a href="#/contact" class="btn btn-outline-light btn-lg" data-link>Contact Us</a>
                             </div>
                         </div>
@@ -432,6 +565,7 @@
                 </section>
             `;
             initFAQ();
+            initScrollReveal();
         },
 
         /* ---- COURSES ---- */
@@ -491,20 +625,19 @@
                 </div>
             `;
             initCourseFilter();
+            initScrollReveal();
         },
 
         _courseCard(title, category, desc, tags, img) {
             const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
             const catLabel = category === 'cad-cam' ? 'CAD/CAM' : category === 'cnc' ? 'CNC' : 'Industrial';
             const tagHtml = tags.map(t => `<span class="course-tag">${t}</span>`).join('');
-            const accentColor = category === 'cnc' ? 'var(--primary)' : category === 'industrial' ? 'var(--tertiary-container)' : 'var(--secondary-fixed)';
-            const duration = category === 'cnc' ? '3 Months' : category === 'industrial' ? '2 Months' : '6 Weeks';
-            const level = category === 'cnc' ? 'Advanced' : category === 'industrial' ? 'Intermediate' : 'Beginner';
+            const accentColor = category === 'cnc' ? 'var(--primary)' : category === 'industrial' ? 'var(--tertiary-container)' : 'var(--secondary)';
             return `
-                <div class="course-card course-filter-card" data-title="${title}" data-category="${category}" style="--card-accent:${accentColor};">
+                <div class="course-card course-filter-card reveal" data-title="${title}" data-category="${category}" style="--card-accent:${accentColor};">
                     <div class="course-card-image">
                         <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='250'%3E%3Crect fill='%23f1f3f5' width='400' height='250'/%3E%3C/svg%3E" data-src="${img}" alt="${title}" loading="lazy" decoding="async" class="lazy-img"/>
-                        <span class="course-card-badge" style="background:${accentColor};color:${category === 'cnc' ? 'var(--on-primary)' : 'var(--primary)'};">${catLabel}</span>
+                        <span class="course-card-badge" style="background:${accentColor};color:${category === 'cnc' ? 'var(--on-primary)' : 'var(--on-primary)'};">${catLabel}</span>
                         <div class="course-card-image-overlay"></div>
                     </div>
                     <div class="course-card-body">
@@ -513,10 +646,10 @@
                         <div class="course-card-tags">${tagHtml}</div>
                         <div class="course-card-meta">
                             <div class="course-meta-item">
-                                <span class="material-symbols-outlined">schedule</span> ${duration}
+                                <span class="material-symbols-outlined">schedule</span> ${tags[0] || '6 Weeks'}
                             </div>
                             <div class="course-meta-item">
-                                <span class="material-symbols-outlined">signal_cellular_alt</span> ${level}
+                                <span class="material-symbols-outlined">signal_cellular_alt</span> ${tags[1] || 'Beginner'}
                             </div>
                             <div class="course-meta-item">
                                 <span class="material-symbols-outlined">location_on</span> In-Person
@@ -1194,11 +1327,48 @@
     };
 
     /* ------------------------------------------
+       Scroll Reveal Animation
+       ------------------------------------------ */
+    function initScrollReveal() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    }
+
+    /* ------------------------------------------
+       Compact Navigation on Scroll
+       ------------------------------------------ */
+    function initCompactNav() {
+        const nav = document.getElementById('main-nav');
+        if (!nav) return;
+        let lastScroll = 0;
+        window.addEventListener('scroll', () => {
+            const scrollY = window.scrollY;
+            if (scrollY > 60) {
+                nav.classList.add('compact');
+            } else {
+                nav.classList.remove('compact');
+            }
+            lastScroll = scrollY;
+        }, { passive: true });
+    }
+
+    /* ------------------------------------------
        Initialize Application
        ------------------------------------------ */
     function init() {
         // Setup mobile navigation
         initMobileNav();
+
+        // Setup compact nav
+        initCompactNav();
 
         // Setup enquiry modal close on overlay click
         document.getElementById('enquiry-modal')?.addEventListener('click', (e) => {
