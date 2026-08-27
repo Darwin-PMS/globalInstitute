@@ -18,6 +18,9 @@ use App\Domains\OnlineLearning\Services\ConflictDetectionService;
 use App\Domains\OnlineLearning\Services\RecurrenceService;
 use App\Domains\OnlineLearning\Services\NotificationService;
 use App\Domains\OnlineLearning\Services\JoinAuthorizationService;
+use App\Domains\OnlineLearning\Services\LiveKitService;
+use App\Domains\OnlineLearning\Services\LiveClassAttendanceService;
+use App\Domains\OnlineLearning\Services\LiveClassParticipantService;
 use App\Domains\OnlineLearning\Room\Contracts\RoomSubjectResolverInterface;
 use App\Domains\OnlineLearning\Room\Subjects\OnlineClassSubjectResolver;
 use App\Domains\OnlineLearning\Room\Services\ClassRoomService;
@@ -125,5 +128,20 @@ class OnlineLearningServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(RoomAccessService::class);
+
+        // LiveKit integration services
+        $this->app->singleton(LiveKitService::class);
+
+        $this->app->singleton(LiveClassAttendanceService::class, function ($app) {
+            return new LiveClassAttendanceService(
+                $app->make(LiveKitService::class)
+            );
+        });
+
+        $this->app->singleton(LiveClassParticipantService::class, function ($app) {
+            return new LiveClassParticipantService(
+                $app->make(LiveKitService::class)
+            );
+        });
     }
 }

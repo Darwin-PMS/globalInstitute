@@ -15,7 +15,7 @@
 
     @vite(['resources/css/app.css', 'resources/js/online-learning/room/app.js'])
 </head>
-<body data-skeleton-theme="dark" class="bg-slate-950 text-slate-100 font-sans antialiased">
+<body data-skeleton-theme="dark" class="bg-[#06080d] text-slate-100 font-sans antialiased">
 
     <a href="#room-panel"
        class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:rounded-xl focus:bg-indigo-600 focus:text-white focus:text-xs focus:font-bold">
@@ -28,41 +28,41 @@
         contents are fetched only when opened. JS fills each region; Blade's job
         is the shell and the bootstrap payload.
     --}}
-    <div id="class-room" class="min-h-screen flex flex-col">
+    <div id="class-room" class="min-h-screen flex flex-col bg-[#06080d]">
 
-        <header id="room-header" class="flex-shrink-0 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
-            {{-- Skeleton until bootstrap resolves, so the first paint is never blank --}}
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4" aria-hidden="true">
-                <div class="skeleton skeleton-text" style="width:112px;margin-bottom:10px"></div>
-                <div class="skeleton skeleton-title" style="width:288px"></div>
+        <header id="room-header" class="flex-shrink-0 border-b border-white/[0.06] bg-[#0a0e17]/80 backdrop-blur-xl">
+            {{-- Skeleton until bootstrap resolves --}}
+            <div class="max-w-[1400px] mx-auto px-4 sm:px-6 py-3.5" aria-hidden="true">
+                <div class="flex items-center gap-4">
+                    <div class="skeleton w-9 h-9 rounded-xl"></div>
+                    <div class="space-y-1.5">
+                        <div class="skeleton skeleton-text" style="width:96px"></div>
+                        <div class="skeleton skeleton-title" style="width:220px"></div>
+                    </div>
+                </div>
             </div>
         </header>
 
-        <div class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-            <section id="room-stage" aria-label="Class stage">
-                <div class="skeleton" style="height:192px;border-radius:16px" aria-hidden="true"></div>
+        <div class="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-5 space-y-4">
+            <section id="room-stage" aria-label="Class stage" class="stage-enter">
+                <div class="skeleton" style="height:280px;border-radius:20px" aria-hidden="true"></div>
             </section>
 
-            <nav id="room-tabs" class="flex gap-1 overflow-x-auto" aria-label="Room sections"></nav>
+            <nav id="room-tabs" class="flex gap-1.5 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1" aria-label="Room sections"></nav>
 
-            <main id="room-panel" tabindex="-1" aria-live="polite" class="min-h-[18rem]">
-                <div class="skeleton" style="height:256px;border-radius:16px" aria-hidden="true"></div>
+            <main id="room-panel" tabindex="-1" aria-live="polite" class="min-h-[18rem] panel-enter">
+                <div class="skeleton" style="height:256px;border-radius:20px" aria-hidden="true"></div>
             </main>
         </div>
     </div>
 
     <div id="room-toasts" role="status" aria-live="polite"
-         class="fixed top-4 right-4 z-50 flex flex-col gap-3 max-w-[calc(100vw-2rem)] sm:max-w-sm pointer-events-none"></div>
+         class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-[calc(100vw-2.5rem)] sm:max-w-sm pointer-events-none"></div>
 
     @php
         $user = auth()->user();
     @endphp
 
-    {{--
-        Bootstrap only: which room, who is asking, and the CSRF token. Roles,
-        capabilities and the meeting link all come from the API, which derives
-        them from the session — never from anything published here.
-    --}}
     <script>
         window.ClassRoomConfig = {
             roomKey: @json($roomKey),
@@ -72,7 +72,6 @@
             branding: {
                 name: @json(config('online-learning.branding.institute_name')),
             },
-            // Where to send someone who cannot be here, or who leaves.
             exitUrl: @json($user->is_admin
                 ? url('/admin/online-learning/classes')
                 : (($user->trainer ?? null) ? url('/teacher/online-learning/classes') : url('/student/learning/classes'))),

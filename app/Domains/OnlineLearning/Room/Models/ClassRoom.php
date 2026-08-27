@@ -25,6 +25,8 @@ class ClassRoom extends Model
         'opened_at', 'started_at', 'ended_at', 'cancelled_at', 'cancellation_reason',
         'host_user_id', 'host_last_seen_at', 'settings',
         'participant_count', 'peak_participant_count', 'message_count', 'tenant_id',
+        'livekit_room_name', 'livekit_room_sid', 'livekit_room_active',
+        'livekit_participant_count', 'active_egress_id', 'livekit_room_metadata',
     ];
 
     protected $casts = [
@@ -39,6 +41,9 @@ class ClassRoom extends Model
         'peak_participant_count' => 'integer',
         'message_count' => 'integer',
         'tenant_id' => 'integer',
+        'livekit_room_active' => 'boolean',
+        'livekit_participant_count' => 'integer',
+        'livekit_room_metadata' => 'array',
     ];
 
     /**
@@ -90,6 +95,11 @@ class ClassRoom extends Model
     public function events(): HasMany
     {
         return $this->hasMany(ClassRoomEvent::class);
+    }
+
+    public function recordings(): HasMany
+    {
+        return $this->hasMany(LiveClassRecording::class, 'class_room_id');
     }
 
     /* -------------------------------------------------------------- scopes */
@@ -163,5 +173,22 @@ class ClassRoom extends Model
         $participant = $this->participantFor($userId);
 
         return $participant ? $participant->role : null;
+    }
+
+    /* -------------------------------------------------------------- livekit */
+
+    public function hasActiveRecording(): bool
+    {
+        return !empty($this->active_egress_id);
+    }
+
+    public function livekitReady(): bool
+    {
+        return $this->livekit_room_active && !empty($this->livekit_room_name);
+    }
+
+    public function getLivekitRoomNameAttribute(): ?string
+    {
+        return $this->attributes['livekit_room_name'] ?? null;
     }
 }

@@ -36,6 +36,7 @@ class RoomApiController extends RoomController
         return $this->ok([
             'room' => $this->rooms->stateSnapshot($room, $subject),
             'class' => [
+                'id' => $subject->subjectId(),
                 'title' => $subject->title(),
                 'description' => $subject->description(),
                 'context' => $subject->contextLabel(),

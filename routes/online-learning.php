@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\OnlineLearning\AdminLearningApiController;
 use App\Http\Controllers\Api\OnlineLearning\ClassApiController;
+use App\Http\Controllers\Api\OnlineLearning\LiveClassController;
 use App\Http\Controllers\Api\OnlineLearning\StudentLearningApiController;
 use App\Http\Controllers\Api\OnlineLearning\TeacherLearningApiController;
 use App\Http\Controllers\Api\OnlineLearning\Room\RoomApiController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Api\OnlineLearning\Room\RoomEntryApiController;
 use App\Http\Controllers\Api\OnlineLearning\Room\RoomMessageApiController;
 use App\Http\Controllers\Api\OnlineLearning\Room\RoomPanelApiController;
 use App\Http\Controllers\Api\OnlineLearningApiController;
+use App\Http\Controllers\Api\LiveKitWebhookController;
 use App\Http\Controllers\Frontend\SpaController;
 use App\Http\Middleware\AdminMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -79,6 +81,33 @@ Route::prefix('api/online-learning')
         });
 
         /*
+        |----------------------------------------------------------------------
+        | Live Class (LiveKit Integration)
+        |----------------------------------------------------------------------
+        | Full LiveKit-powered classroom with video, mic, screen share,
+        | recording, hand raise, and real-time chat.
+        */
+        Route::prefix('live-classes/{onlineClass}')->name('live-classes.')->group(function () {
+            Route::post('join', [LiveClassController::class, 'join'])->name('join');
+            Route::post('start', [LiveClassController::class, 'start'])->name('start');
+            Route::post('end', [LiveClassController::class, 'end'])->name('end');
+            Route::get('state', [LiveClassController::class, 'state'])->name('state');
+            Route::get('participants', [LiveClassController::class, 'participants'])->name('participants');
+            Route::post('participants/{userId}/mute', [LiveClassController::class, 'muteParticipant'])->name('participants.mute');
+            Route::post('participants/{userId}/remove', [LiveClassController::class, 'removeParticipant'])->name('participants.remove');
+            Route::post('participants/{userId}/permissions', [LiveClassController::class, 'updatePermissions'])->name('participants.permissions');
+            Route::post('raise-hand', [LiveClassController::class, 'raiseHand'])->name('raise-hand');
+            Route::post('lower-hand', [LiveClassController::class, 'lowerHand'])->name('lower-hand');
+            Route::get('chat', [LiveClassController::class, 'chat'])->name('chat');
+            Route::post('chat', [LiveClassController::class, 'sendChat'])->name('chat.send');
+            Route::post('recording/start', [LiveClassController::class, 'startRecording'])->name('recording.start');
+            Route::post('recording/stop', [LiveClassController::class, 'stopRecording'])->name('recording.stop');
+            Route::get('recordings', [LiveClassController::class, 'recordings'])->name('recordings');
+            Route::get('attendance', [LiveClassController::class, 'attendance'])->name('attendance');
+            Route::put('settings', [LiveClassController::class, 'updateSettings'])->name('settings');
+        });
+
+        /*
         | Student
         */
         Route::prefix('student')->name('student.')->group(function () {
@@ -121,12 +150,50 @@ Route::prefix('api/online-learning')
 
 /*
 |--------------------------------------------------------------------------
+| LiveKit Webhook (no auth — server-to-server)
+|--------------------------------------------------------------------------
+*/
+Route::post('api/webhooks/livekit', [LiveKitWebhookController::class, 'handle'])
+    ->middleware('api')
+    ->name('livekit.webhook');
+
+/*
+|--------------------------------------------------------------------------
 | SPA Application Shell
 |--------------------------------------------------------------------------
 | Every path under these prefixes returns the same Blade shell; the JS
 | router resolves the actual screen. This is what makes deep links such as
-| /student/learning/classes/123 survive a refresh (§55, §56).
+| /student/learning/classes/123 survive a refresh.
 */
+Route::middleware('auth')->group(function () {
+
+    /*
+     | Resolve class ID to room key and redirect to the room.
+     | Used by admin "Join Now" button.
+     */
+    Route::get('/learning/room/resolve/{onlineClass}', function (\App\Models\OnlineClass $onlineClass) {
+        $room = \App\Domains\OnlineLearning\Room\Models\ClassRoom::where('subject_type', \App\Models\OnlineClass::class)
+            ->where('subject_id', $onlineClass->id)
+            ->first();
+
+        if (!$room) {
+            $room = \App\Domains\OnlineLearning\Room\Models\ClassRoom::create([
+                'subject_type' => \App\Models\OnlineClass::class,
+                'subject_id'  => $onlineClass->id,
+                'room_key'    => Illuminate\Support\Str::uuid(),
+                'state'       => \App\Domains\OnlineLearning\Room\Enums\RoomState::Scheduled,
+                'host_user_id'=> $onlineClass->teacher?->user_id,
+                'settings'    => \App\Domains\OnlineLearning\Room\Models\ClassRoom::DEFAULT_SETTINGS,
+            ]);
+        }
+
+        if (!$room) {
+            abort(404, 'Could not create or find a room for this class.');
+        }
+
+        return redirect(url("/learning/room/{$room->room_key}"));
+    })->name('learning.room.resolve');
+});
 
 Route::middleware('auth')->group(function () {
     /*

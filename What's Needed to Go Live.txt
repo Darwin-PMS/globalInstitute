@@ -1,0 +1,16 @@
+What's Needed to Go Live
+1. Set up LiveKit — Create account at livekit.io (https://livekit.io), get API key/secret/URL
+2. Update .env:
+LIVEKIT_URL=wss://your-cluster.livekit.cloud
+LIVEKIT_API_KEY=your_key
+LIVEKIT_API_SECRET=your_secret
+LIVEKIT_WEBHOOK_SECRET=your_webhook_secret
+3. Configure webhook in LiveKit Cloud dashboard → point to https://your-domain.com/api/webhooks/livekit
+4. Test — Navigate to /learning/room/{roomKey} for any scheduled class
+Architecture Decisions
+- Extended existing ClassRoom model — added LiveKit columns instead of creating parallel tables
+- LiveKit as media transport only — Laravel owns all state, auth, attendance, recordings
+- Code-split — LiveKit JS SDK (572KB) only loads when entering a classroom
+- Domain-Driven — LiveKit service is in Domains/OnlineLearning/Services/, extractable as standalone module
+- Webhook-first recording — never trust frontend for recording status
+- Role-based tokens — different LiveKit grants for instructor vs student vs moderator

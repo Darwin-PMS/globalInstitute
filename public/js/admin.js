@@ -380,7 +380,8 @@ var NAV_SECTIONS = [
     },
     {
         title: 'Online Learning', items: [
-            { route: 'online-classes', label: 'Live Classes', icon: 'videocam', spa: true },
+            { route: 'live-classroom', label: 'Live Classroom', icon: 'live_tv', spa: true },
+            { route: 'online-classes', label: 'Schedule Classes', icon: 'videocam', spa: true },
             { route: 'lessons', label: 'Lessons', icon: 'menu_book', spa: true },
             { route: 'materials', label: 'Materials', icon: 'folder_open', spa: true },
             { route: 'assignments', label: 'Assignments', icon: 'assignment', spa: true },
@@ -433,6 +434,11 @@ var Router = {
 
         if (target.page === 'dashboard') {
             DashboardPage();
+            return;
+        }
+
+        if (target.page === 'live-classroom') {
+            LiveClassroomPage();
             return;
         }
 
@@ -1333,7 +1339,108 @@ var pages = {
 };
 
 /* ----------------------------------------------------------
-   9. Dashboard
+   9. Live Classroom Dashboard
+   ---------------------------------------------------------- */
+function LiveClassroomPage() {
+    var content = document.getElementById('admin-content');
+    AdminApp.setTitle('Live Classroom');
+    AdminApp.setActions('');
+
+    content.innerHTML =
+        '<div class="page-header" style="margin-bottom:24px;">' +
+        '<h2 style="font-size:20px;font-weight:700;color:#f1f5f9;margin:0 0 4px;">Live Classroom</h2>' +
+        '<p style="font-size:13px;color:#94a3b8;margin:0;">Join and manage live class sessions with real-time video.</p>' +
+        '</div>' +
+        '<div id="live-classes-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' +
+        '<div class="skeleton" style="height:180px;border-radius:16px;"></div>' +
+        '<div class="skeleton" style="height:180px;border-radius:16px;"></div>' +
+        '<div class="skeleton" style="height:180px;border-radius:16px;"></div>' +
+        '</div>';
+
+    Api.get('/online-classes').then(function (res) {
+        var classes = (res && res.data) ? (res.data.data || res.data) : [];
+        renderLiveClassGrid(classes);
+    }).catch(function () {
+        content.innerHTML =
+            '<div style="text-align:center;padding:60px 20px;">' +
+            '<span class="material-symbols-outlined" style="font-size:48px;color:#475569;">error</span>' +
+            '<p style="color:#94a3b8;margin-top:12px;font-size:14px;">Failed to load classes.</p>' +
+            '<button onclick="LiveClassroomPage()" style="margin-top:12px;padding:8px 16px;border-radius:8px;background:#6366f1;color:white;border:none;cursor:pointer;font-size:13px;">Retry</button>' +
+            '</div>';
+    });
+}
+
+function renderLiveClassGrid(classes) {
+    var grid = document.getElementById('live-classes-grid');
+    if (!grid) return;
+
+    if (!classes || classes.length === 0) {
+        grid.innerHTML =
+            '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;">' +
+            '<span class="material-symbols-outlined" style="font-size:48px;color:#475569;">videocam_off</span>' +
+            '<p style="color:#94a3b8;margin-top:12px;font-size:14px;">No classes scheduled.</p>' +
+            '<a href="#/online-classes/create" style="display:inline-block;margin-top:12px;padding:8px 16px;border-radius:8px;background:#6366f1;color:white;text-decoration:none;font-size:13px;">Schedule a Class</a>' +
+            '</div>';
+        return;
+    }
+
+    var html = '';
+    classes.forEach(function (cls) {
+        var statusColors = {
+            live: { bg: '#059669', text: '#ecfdf5', label: 'LIVE', pulse: true },
+            scheduled: { bg: '#1e40af', text: '#dbeafe', label: 'Scheduled', pulse: false },
+            starting_soon: { bg: '#d97706', text: '#fef3c7', label: 'Starting Soon', pulse: true },
+            completed: { bg: '#475569', text: '#e2e8f0', label: 'Completed', pulse: false },
+            cancelled: { bg: '#991b1b', text: '#fee2e2', label: 'Cancelled', pulse: false },
+            postponed: { bg: '#6b21a8', text: '#f3e8ff', label: 'Postponed', pulse: false }
+        };
+        var sc = statusColors[cls.status] || statusColors.scheduled;
+        var isLive = cls.status === 'live';
+        var isJoinable = cls.status === 'live' || cls.status === 'starting_soon' || cls.status === 'scheduled';
+        var dateStr = cls.class_date ? new Date(cls.class_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+        var timeStr = cls.start_time || '';
+        if (cls.end_time) timeStr += ' – ' + cls.end_time;
+
+        html +=
+            '<div class="live-class-card" style="background:#0f172a;border:1px solid ' + (isLive ? '#059669' : '#1e293b') + ';border-radius:16px;overflow:hidden;transition:all 0.2s;' + (isLive ? 'box-shadow:0 0 20px rgba(5,150,105,0.15);' : '') + '">' +
+            '<div style="padding:20px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
+            '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:' + sc.bg + ';color:' + sc.text + ';">' +
+            (sc.pulse ? '<span style="width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.5s infinite;"></span>' : '') +
+            sc.label +
+            '</span>' +
+            '<span style="font-size:11px;color:#64748b;">' + escapeHtml(dateStr) + '</span>' +
+            '</div>' +
+            '<h3 style="font-size:16px;font-weight:700;color:#f1f5f9;margin:0 0 6px;line-height:1.3;">' + escapeHtml(cls.title || 'Untitled') + '</h3>' +
+            '<div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">' +
+            '<span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">schedule</span> ' + escapeHtml(timeStr) +
+            '</div>' +
+            (cls.course ? '<div style="font-size:12px;color:#94a3b8;margin-bottom:4px;"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">school</span> ' + escapeHtml(cls.course.title || '') + '</div>' : '') +
+            (cls.teacher ? '<div style="font-size:12px;color:#94a3b8;margin-bottom:12px;"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">person</span> ' + escapeHtml(cls.teacher.name || '') + '</div>' : '') +
+            '<div style="display:flex;gap:8px;margin-top:16px;">' +
+            (isJoinable ?
+                '<button onclick="joinLiveClassroom(' + cls.id + ')" style="flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s;' +
+                (isLive ? 'background:#059669;color:white;' : 'background:#6366f1;color:white;') + '">' +
+                '<span class="material-symbols-outlined" style="font-size:18px;">' + (isLive ? 'videocam' : 'login') + '</span>' +
+                (isLive ? 'Join Now' : 'Enter Lobby') +
+                '</button>' : '') +
+            '<a href="#/online-classes/edit/' + cls.id + '" style="padding:10px 14px;border-radius:10px;border:1px solid #334155;background:transparent;color:#94a3b8;font-size:13px;text-decoration:none;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.borderColor=\'#6366f1\';this.style.color=\'#a5b4fc\'" onmouseout="this.style.borderColor=\'#334155\';this.style.color=\'#94a3b8\'">' +
+            '<span class="material-symbols-outlined" style="font-size:18px;">edit</span>' +
+            '</a>' +
+            '</div>' +
+            '</div></div>';
+    });
+
+    grid.innerHTML = html;
+}
+
+function joinLiveClassroom(classId) {
+    var baseUrl = (window.AdminConfig && window.AdminConfig.baseUrl) || '';
+    window.open(baseUrl + '/learning/room/resolve/' + classId, '_blank');
+}
+
+/* ----------------------------------------------------------
+   10. Dashboard
    ---------------------------------------------------------- */
 function DashboardPage() {
     var content = document.getElementById('admin-content');

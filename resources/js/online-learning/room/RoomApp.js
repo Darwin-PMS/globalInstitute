@@ -32,7 +32,8 @@ export class RoomApp {
 
     /** Panel key → dynamic import. Vite splits each into its own chunk. */
     static PANEL_LOADERS = {
-        stage: () => import('./panels/stage.js').then((m) => m.default),
+        stage: () => import('./panels/livekit-stage.js').then((m) => m.default),
+        'stage-legacy': () => import('./panels/stage.js').then((m) => m.default),
         chat: () => import('./panels/chat.js').then((m) => m.default),
         materials: () => import('./panels/resources.js').then((m) => m.MaterialsPanel),
         recordings: () => import('./panels/resources.js').then((m) => m.RecordingsPanel),
@@ -81,10 +82,6 @@ export class RoomApp {
         return { room: this.state.room, klass: this.state.klass, me: this.state.me };
     }
 
-    /**
-     * Apply a fresh room state. Only re-renders when something visible moved, so
-     * a poll that changes nothing does not churn the DOM.
-     */
     applyRoomState(room, onlineCount = null) {
         if (!room) return;
 
@@ -93,7 +90,7 @@ export class RoomApp {
 
         if (onlineCount !== null) {
             const el = document.getElementById('stage-online');
-            if (el) el.textContent = onlineCount;
+            if (el) el.textContent = onlineCount + ' online';
             this.state.room.participant_count = onlineCount;
         }
 
@@ -120,38 +117,37 @@ export class RoomApp {
         const { room, klass, me } = this.state;
 
         this.els.header.innerHTML = `
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
-                <div class="min-w-0 flex items-center gap-4">
+            <div class="max-w-[1400px] mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+                <div class="min-w-0 flex items-center gap-3.5">
                     <a href="${escapeHtml(this.config.exitUrl)}" data-room-exit
-                       class="flex-shrink-0 p-2 -ml-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                       class="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all duration-200"
                        aria-label="Leave the room">
-                        <span class="material-symbols-outlined text-xl" aria-hidden="true">arrow_back</span>
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">arrow_back</span>
                     </a>
 
                     <div class="min-w-0">
-                        <div class="flex items-center gap-2 flex-wrap">
+                        <div class="flex items-center gap-2.5 flex-wrap">
                             ${roomStateBadge(room.state, room.state_label)}
-                            <span class="text-[11px] text-slate-500 truncate">${escapeHtml(klass.context || '')}</span>
+                            <span class="text-[11px] text-slate-500 truncate max-w-[180px]">${escapeHtml(klass.context || '')}</span>
                         </div>
-                        <h1 class="text-sm sm:text-base font-bold text-slate-100 truncate mt-0.5">
+                        <h1 class="text-[15px] font-bold text-white truncate mt-0.5 tracking-[-0.01em]">
                             ${escapeHtml(klass.title)}
                         </h1>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-3 flex-shrink-0">
-                    <span class="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-slate-400">
-                        <span class="material-symbols-outlined text-base" aria-hidden="true">groups</span>
-                        <span data-room-online>${room.participant_count || 0}</span>
+                    <span class="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+                        <span class="material-symbols-outlined text-[15px]" aria-hidden="true">groups</span>
+                        <span data-room-online>${room.participant_count || 0} online</span>
                     </span>
-                    <span class="hidden md:inline-flex px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-[11px] font-semibold text-slate-300">
+                    <span class="hidden md:inline-flex px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] font-semibold text-slate-300 tracking-wide uppercase">
                         ${escapeHtml(me.role_label)}
                     </span>
                 </div>
             </div>
         `;
 
-        // Leaving the room releases presence rather than going silent.
         this.els.header.querySelector('[data-room-exit]')?.addEventListener('click', (e) => {
             e.preventDefault();
             this.exit();
@@ -163,9 +159,9 @@ export class RoomApp {
     renderTabs() {
         this.els.tabs.innerHTML = this.state.panels.map((p) => `
             <button type="button" role="tab" data-panel="${p.key}" aria-selected="false"
-                class="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-colors
-                       bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700">
-                <span class="material-symbols-outlined text-base" aria-hidden="true">${p.icon}</span>
+                class="tab-btn flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200
+                       bg-white/[0.02] border border-white/[0.06] text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] hover:border-white/[0.1]">
+                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">${p.icon}</span>
                 ${escapeHtml(p.label)}
             </button>
         `).join('');
@@ -179,27 +175,25 @@ export class RoomApp {
         this.els.tabs.querySelectorAll('[data-panel]').forEach((btn) => {
             const active = btn.dataset.panel === key;
             btn.setAttribute('aria-selected', active ? 'true' : 'false');
-            btn.className = `flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-colors ${active
-                ? 'bg-indigo-600 border-indigo-500 text-white'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'}`;
+
+            if (active) {
+                btn.className = `tab-btn flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200
+                    bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 shadow-[0_0_12px_-4px_rgba(99,102,241,0.3)]`;
+            } else {
+                btn.className = `tab-btn flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200
+                    bg-white/[0.02] border border-white/[0.06] text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] hover:border-white/[0.1]`;
+            }
         });
     }
 
     /* -------------------------------------------------------------- panels */
 
-    /**
-     * Open a panel, importing its module the first time it is needed.
-     *
-     * The stage renders into its own region above the tabs; every other panel
-     * shares the panel area below them.
-     */
     async openPanel(key) {
         if (this.activeKey === key) return;
 
         const loader = RoomApp.PANEL_LOADERS[key];
         if (!loader) return;
 
-        // Tear the previous panel down so its subscriptions and timers stop.
         this.activePanel?.destroy?.();
         this.activePanel = null;
 
@@ -210,6 +204,8 @@ export class RoomApp {
 
         if (key !== 'stage') {
             this.els.panel.innerHTML = this.loadingBlock(key);
+            this.els.panel.classList.add('panel-enter');
+            setTimeout(() => this.els.panel.classList.remove('panel-enter'), 500);
         }
 
         let PanelClass = this.panelCache.get(key);
@@ -240,14 +236,9 @@ export class RoomApp {
             mount.innerHTML = errorState(err.message || 'This section could not be displayed.');
         }
 
-        // The stage stays visible; other panels take focus for keyboard users.
         if (key !== 'stage') this.els.panel.focus({ preventScroll: true });
     }
 
-    /**
-     * Shown while a panel's module and data are in flight. Uses the shape that
-     * best matches the panel so the swap does not shift the layout.
-     */
     loadingBlock(key = null) {
         const byPanel = {
             chat: () => skeletons.chat({ rows: 5 }),
@@ -299,7 +290,6 @@ export class RoomApp {
         }
     }
 
-    /** Room settings, edited in place rather than on another screen. */
     openSettings() {
         const settings = this.state.room.settings || {};
 
@@ -314,18 +304,18 @@ export class RoomApp {
         ];
 
         this.els.panel.innerHTML = `
-            <div class="max-w-xl bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+            <div class="max-w-xl bg-[#0c1018] border border-white/[0.06] rounded-2xl p-6 space-y-5 shadow-2xl">
                 <div>
-                    <h2 class="text-sm font-bold text-slate-100">Room settings</h2>
-                    <p class="text-[11px] text-slate-400 mt-0.5">These apply to this class only.</p>
+                    <h2 class="text-sm font-bold text-white">Room settings</h2>
+                    <p class="text-[11px] text-slate-500 mt-0.5">These apply to this class only.</p>
                 </div>
 
                 <div class="space-y-3">
                     ${toggles.map(([key, label]) => `
-                        <label class="flex items-center justify-between gap-4 cursor-pointer">
-                            <span class="text-xs text-slate-300">${label}</span>
+                        <label class="flex items-center justify-between gap-4 cursor-pointer group">
+                            <span class="text-xs text-slate-300 group-hover:text-white transition-colors">${label}</span>
                             <input type="checkbox" data-setting="${key}" ${settings[key] ? 'checked' : ''}
-                                   class="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-600">
+                                   class="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500/30 focus:ring-offset-0">
                         </label>
                     `).join('')}
 
@@ -333,15 +323,15 @@ export class RoomApp {
                         <span class="text-xs text-slate-300">Lobby opens (minutes before)</span>
                         <input type="number" min="0" max="180" data-setting="lobby_opens_minutes_before"
                                value="${settings.lobby_opens_minutes_before ?? 15}"
-                               class="w-20 bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-500">
+                               class="w-20 bg-slate-950 border border-white/[0.06] text-slate-200 text-xs rounded-xl px-2.5 py-1.5 outline-none focus:border-indigo-500/50 transition-colors">
                     </label>
                 </div>
 
-                <div class="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                <div class="flex justify-end gap-2 pt-4 border-t border-white/[0.06]">
                     <button type="button" id="settings-cancel"
-                        class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors">Cancel</button>
+                        class="px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-semibold transition-all border border-white/[0.06]">Cancel</button>
                     <button type="button" id="settings-save"
-                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors">Save settings</button>
+                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Save settings</button>
                 </div>
             </div>
         `;
@@ -376,7 +366,6 @@ export class RoomApp {
 
                 toast(res?.message || 'Settings saved.', 'success');
 
-                // Capabilities may have changed, so the tab strip is rebuilt.
                 this.renderTabs();
                 this.activeKey = null;
                 await this.openPanel('stage');
@@ -409,7 +398,6 @@ export class RoomApp {
         }
     }
 
-    /** Release presence on the way out so the roster does not show ghosts. */
     bindLifecycle() {
         window.addEventListener('pagehide', () => {
             if (navigator.sendBeacon) {
@@ -428,7 +416,7 @@ export class RoomApp {
         try {
             await this.api.leave();
         } catch {
-            // Leaving is best-effort; the stale-presence window covers the rest.
+            // Leaving is best-effort
         }
 
         window.location.href = this.config.exitUrl;
@@ -440,7 +428,6 @@ export class RoomApp {
         setTimeout(() => { window.location.href = '/login'; }, 1500);
     }
 
-    /** Bootstrap failed — say why, and offer the way out. */
     renderFatal(err) {
         const forbidden = err.status === 403;
         const missing = err.status === 404;
@@ -458,7 +445,7 @@ export class RoomApp {
                         : missing ? 'This room no longer exists' : 'The room could not be opened',
                     description: err.message || '',
                     action: `<a href="${escapeHtml(this.config.exitUrl)}"
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors">
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-lg shadow-indigo-500/20">
                         <span class="material-symbols-outlined text-sm" aria-hidden="true">arrow_back</span> Back to my classes</a>`,
                 })}
             </div>

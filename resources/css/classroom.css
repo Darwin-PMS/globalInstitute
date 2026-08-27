@@ -1,0 +1,393 @@
+/* ── Classroom UI ───────────────────────────────────────────── */
+
+/* Page entrance animations */
+.stage-enter {
+    animation: stageIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.panel-enter {
+    animation: panelIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+@keyframes stageIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes panelIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Video Grid ────────────────────────────────────────────── */
+.video-grid {
+    position: relative;
+    background: #080b12;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.04);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 8px 40px -12px rgba(0,0,0,0.6);
+}
+
+.video-tile {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #0c1018;
+    overflow: hidden;
+    border-radius: 12px;
+    transition: box-shadow 0.3s ease;
+}
+
+.video-tile video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-tile::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(0deg, rgba(0,0,0,0.5) 0%, transparent 30%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.video-tile:hover::after {
+    opacity: 1;
+}
+
+/* Speaker highlight */
+.video-tile.speaking {
+    box-shadow: 0 0 0 2.5px rgba(99,102,241,0.8), 0 0 24px -4px rgba(99,102,241,0.3);
+}
+
+/* ── Participant strip ─────────────────────────────────────── */
+#participant-strip {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 2px 6px;
+    scrollbar-width: none;
+}
+#participant-strip::-webkit-scrollbar { display: none; }
+
+#participant-strip > div {
+    width: 140px;
+    height: 90px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+    border: 2px solid rgba(255,255,255,0.06);
+    transition: all 0.25s ease;
+    cursor: pointer;
+    box-shadow: 0 4px 12px -4px rgba(0,0,0,0.5);
+}
+
+#participant-strip > div:hover {
+    border-color: rgba(255,255,255,0.12);
+    transform: translateY(-2px);
+}
+
+#participant-strip > div.active-speaker {
+    border-color: rgba(99,102,241,0.8);
+    box-shadow: 0 0 0 1px rgba(99,102,241,0.4), 0 4px 16px -4px rgba(99,102,241,0.3);
+}
+
+/* ── Controls Bar ──────────────────────────────────────────── */
+.controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #0c1018;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
+    padding: 10px 16px;
+    box-shadow: 0 8px 32px -8px rgba(0,0,0,0.4);
+}
+
+.control-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    background: rgba(255,255,255,0.04);
+    color: #94a3b8;
+    outline: none;
+}
+
+.control-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: #e2e8f0;
+    transform: translateY(-1px);
+}
+
+.control-btn:active {
+    transform: translateY(0) scale(0.96);
+}
+
+.control-btn.active {
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+    box-shadow: 0 0 0 1px rgba(99,102,241,0.2);
+}
+
+.control-btn.danger {
+    background: rgba(239,68,68,0.12);
+    color: #f87171;
+}
+
+.control-btn.danger:hover {
+    background: rgba(239,68,68,0.2);
+    color: #ef4444;
+}
+
+/* Tooltip */
+.control-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    padding: 4px 10px;
+    background: #1e293b;
+    color: #e2e8f0;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 8px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.15s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.control-btn[data-tooltip]:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ── Connection quality ────────────────────────────────────── */
+.connection-excellent { color: #34d399; }
+.connection-good { color: #818cf8; }
+.connection-poor { color: #fbbf24; }
+.connection-lost { color: #f87171; }
+
+/* ── Recording indicator ───────────────────────────────────── */
+.recording-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #f87171;
+    padding: 4px 10px;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 20px;
+}
+
+.recording-indicator::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: recPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes recPulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+}
+
+/* ── Screen share ──────────────────────────────────────────── */
+.screen-share-view {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.screen-share-view video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* ── Hand raised ───────────────────────────────────────────── */
+.hand-raised-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(251,191,36,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    animation: handBounce 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 4px 12px rgba(251,191,36,0.3);
+}
+
+@keyframes handBounce {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Join Stage ────────────────────────────────────────────── */
+.join-stage-card {
+    background: linear-gradient(145deg, #0c1018 0%, #0f1520 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 24px 80px -20px rgba(0,0,0,0.7);
+    transition: all 0.3s ease;
+}
+
+.join-stage-card:hover {
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 32px 80px -16px rgba(0,0,0,0.8);
+}
+
+.join-stage-hero {
+    position: relative;
+    aspect-ratio: 16/9;
+    background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(16,185,129,0.05) 0%, transparent 50%),
+                linear-gradient(180deg, #0f1520 0%, #0c1018 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.join-stage-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
+}
+
+.join-stage-hero .icon-ring {
+    position: relative;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: rgba(99,102,241,0.08);
+    border: 2px solid rgba(99,102,241,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: iconFloat 3s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+/* ── Live badge pulse ──────────────────────────────────────── */
+.live-pulse {
+    position: relative;
+}
+.live-pulse::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+    background: rgba(16,185,129,0.3);
+    animation: liveGlow 2s ease-in-out infinite;
+    z-index: -1;
+}
+@keyframes liveGlow {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0; transform: scale(1.3); }
+}
+
+/* ── Empty state ───────────────────────────────────────────── */
+.room-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 1.5rem;
+    background: rgba(255,255,255,0.01);
+    border: 1px dashed rgba(255,255,255,0.06);
+    border-radius: 20px;
+}
+
+/* ── Toast container ───────────────────────────────────────── */
+#room-toasts > div {
+    animation: toastIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes toastIn {
+    from { opacity: 0; transform: translateX(16px) scale(0.96); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .controls-bar {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 12px;
+    }
+
+    .control-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+    }
+
+    #participant-strip > div {
+        width: 100px;
+        height: 68px;
+        border-radius: 10px;
+    }
+
+    .join-stage-hero .icon-ring {
+        width: 64px;
+        height: 64px;
+    }
+}
+
+@media (max-width: 480px) {
+    .control-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 11px;
+    }
+
+    .control-btn .material-symbols-outlined {
+        font-size: 19px;
+    }
+
+    #participant-strip > div {
+        width: 80px;
+        height: 56px;
+    }
+}

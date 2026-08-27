@@ -10,6 +10,7 @@ import { showPageLoading, hidePageLoading } from '../../../ui/loading.js';
 export class RoomApi {
     constructor(roomKey, csrfToken, baseUrl = '') {
         this.base = `${baseUrl}/api/online-learning/rooms/${roomKey}`;
+        this.liveClassesBase = `${baseUrl}/api/online-learning/live-classes`;
         this.csrfToken = csrfToken;
         this.controllers = new Map();
     }

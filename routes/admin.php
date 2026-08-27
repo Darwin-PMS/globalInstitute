@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\AssignmentController;
 use App\Http\Controllers\Admin\QuizController;
 use App\Http\Controllers\Admin\RecordingController;
 use App\Http\Controllers\Admin\StudentProgressController;
+use App\Http\Controllers\Admin\LiveClassroomController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -97,6 +98,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->names('lead_sources');
 
         // Online Learning / LMS
+        Route::get('live-classroom', [LiveClassroomController::class, 'index'])->name('live-classroom.index');
         Route::resource('lessons', LessonController::class)->except(['show']);
         Route::resource('online-classes', OnlineClassController::class)->except(['show']);
         Route::resource('materials', MaterialController::class)->except(['show']);

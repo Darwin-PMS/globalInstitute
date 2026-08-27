@@ -112,9 +112,13 @@
                     </a>
 
                     <div class="nav-section-label">Online Learning</div>
+                    <a href="{{ route('admin.live-classroom.index') }}" class="nav-link {{ request()->routeIs('admin.live-classroom.*') ? 'active' : '' }}">
+                        <span class="material-symbols-outlined">live_tv</span>
+                        <span class="nav-text">Live Classroom</span>
+                    </a>
                     <a href="{{ route('admin.online-classes.index') }}" class="nav-link {{ request()->routeIs('admin.online-classes.*') ? 'active' : '' }}">
                         <span class="material-symbols-outlined">videocam</span>
-                        <span class="nav-text">Live Classes</span>
+                        <span class="nav-text">Schedule Classes</span>
                     </a>
                     <a href="{{ route('admin.lessons.index') }}" class="nav-link {{ request()->routeIs('admin.lessons.*') ? 'active' : '' }}">
                         <span class="material-symbols-outlined">menu_book</span>
