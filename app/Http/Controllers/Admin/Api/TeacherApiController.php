@@ -33,10 +33,13 @@ class TeacherApiController extends Controller
             'designation' => 'nullable|string|max:255',
             'qualification' => 'nullable|string|max:255',
             'experience' => 'nullable|string|max:255',
-            'employment_type' => 'required|in:full_time,part_time,contract',
+            'employment_type' => 'nullable|in:full_time,part_time,contract',
             'specialization' => 'nullable|string|max:255',
-            'status' => 'required|in:active,inactive',
+            'bio' => 'nullable|string|max:2000',
+            'status' => 'nullable|in:active,inactive',
         ]);
+        $validated['employment_type'] = $validated['employment_type'] ?? 'full_time';
+        $validated['status'] = $validated['status'] ?? 'active';
 
         $user = User::create([
             'name' => $validated['name'],
@@ -64,9 +67,10 @@ class TeacherApiController extends Controller
             'designation' => 'nullable|string|max:255',
             'qualification' => 'nullable|string|max:255',
             'experience' => 'nullable|string|max:255',
-            'employment_type' => 'required|in:full_time,part_time,contract',
+            'employment_type' => 'nullable|in:full_time,part_time,contract',
             'specialization' => 'nullable|string|max:255',
-            'status' => 'required|in:active,inactive',
+            'bio' => 'nullable|string|max:2000',
+            'status' => 'nullable|in:active,inactive',
         ]);
         $teacher->update($validated);
         if ($teacher->user_id) {

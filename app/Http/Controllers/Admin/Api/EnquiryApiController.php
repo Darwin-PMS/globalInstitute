@@ -26,7 +26,7 @@ class EnquiryApiController extends Controller
     public function update(Request $request, Enquiry $enquiry)
     {
         $validated = $request->validate([
-            'status' => 'required|in:pending,contacted,converted,closed',
+            'status' => 'required|in:new,contacted,converted,closed',
             'notes' => 'nullable|string|max:2000',
         ]);
         $enquiry->update($validated);

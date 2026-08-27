@@ -27,11 +27,12 @@ class MaterialApiController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'file' => 'nullable|file|max:10240',
-            'file_type' => 'required|in:pdf,ppt,doc,xls,zip,image,link,other',
+            'file_type' => 'nullable|in:pdf,ppt,doc,xls,zip,image,link,other',
             'external_url' => 'nullable|url|max:500',
-            'visibility' => 'required|in:enrolled,public',
+            'visibility' => 'nullable|in:enrolled,public',
             'is_published' => 'boolean',
         ]);
+        $validated['visibility'] = $validated['visibility'] ?? 'enrolled';
         if ($request->hasFile('file')) {
             $file = $request->file('file');
             $validated['file_path'] = $file->store('materials', 'public');
@@ -50,9 +51,9 @@ class MaterialApiController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'file' => 'nullable|file|max:10240',
-            'file_type' => 'required|in:pdf,ppt,doc,xls,zip,image,link,other',
+            'file_type' => 'nullable|in:pdf,ppt,doc,xls,zip,image,link,other',
             'external_url' => 'nullable|url|max:500',
-            'visibility' => 'required|in:enrolled,public',
+            'visibility' => 'nullable|in:enrolled,public',
             'is_published' => 'boolean',
         ]);
         if ($request->hasFile('file')) {

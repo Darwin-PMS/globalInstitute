@@ -18,29 +18,34 @@ class RecordingApiController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'online_class_id' => 'required|exists:online_classes,id',
+            'online_class_id' => 'nullable|exists:online_classes,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'recording_url' => 'required|url|max:500',
             'duration' => 'nullable|integer|min:0',
-            'visibility' => 'required|in:enrolled,public',
+            'visibility' => 'nullable|in:enrolled,public',
             'is_published' => 'boolean',
         ]);
+        $validated['visibility'] = $validated['visibility'] ?? 'enrolled';
         $recording = Recording::create($validated);
-        $onlineClass = OnlineClass::find($validated['online_class_id']);
-        $onlineClass->update(['is_recording_available' => true, 'recording_url' => $validated['recording_url']]);
+        if (!empty($validated['online_class_id'])) {
+            $onlineClass = OnlineClass::find($validated['online_class_id']);
+            if ($onlineClass) {
+                $onlineClass->update(['is_recording_available' => true, 'recording_url' => $validated['recording_url']]);
+            }
+        }
         return response()->json(['success' => true, 'recording' => $recording, 'message' => 'Recording added.']);
     }
 
     public function update(Request $request, Recording $recording)
     {
         $validated = $request->validate([
-            'online_class_id' => 'required|exists:online_classes,id',
+            'online_class_id' => 'nullable|exists:online_classes,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'recording_url' => 'required|url|max:500',
             'duration' => 'nullable|integer|min:0',
-            'visibility' => 'required|in:enrolled,public',
+            'visibility' => 'nullable|in:enrolled,public',
             'is_published' => 'boolean',
         ]);
         $recording->update($validated);

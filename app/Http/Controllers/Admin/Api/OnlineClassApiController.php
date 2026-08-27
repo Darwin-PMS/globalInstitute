@@ -43,30 +43,33 @@ class OnlineClassApiController extends Controller
     {
         $validated = $request->validate([
             'course_id' => 'required|exists:courses,id',
-            'batch_id' => 'required|exists:batches,id',
+            'batch_id' => 'nullable|exists:batches,id',
             'module_id' => 'nullable|exists:course_modules,id',
             'lesson_id' => 'nullable|exists:lessons,id',
-            'teacher_id' => 'required|exists:trainers,id',
+            'teacher_id' => 'nullable|exists:trainers,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'class_date' => 'required|date',
             'start_time' => 'required',
             'end_time' => 'required',
             'duration' => 'nullable|integer|min:0',
-            'meeting_provider' => 'required|in:google_meet,zoom,teams,other',
+            'meeting_provider' => 'nullable|in:google_meet,zoom,teams,other',
             'meeting_url' => 'nullable|url|max:500',
             'meeting_id' => 'nullable|string|max:100',
             'meeting_password' => 'nullable|string|max:100',
             'is_attendance_required' => 'boolean',
-            'status' => 'required|in:scheduled,starting_soon,live,completed,cancelled,postponed',
+            'status' => 'nullable|in:scheduled,starting_soon,live,completed,cancelled,postponed',
         ]);
+        $validated['status'] = $validated['status'] ?? 'scheduled';
 
-        $validation = $this->conflictService->validateClassCreation(
-            $validated['teacher_id'], $validated['batch_id'],
-            $validated['class_date'], $validated['start_time'], $validated['end_time']
-        );
-        if (!$validation['valid']) {
-            return response()->json(['success' => false, 'message' => $validation['conflicts'][0]['message']], 422);
+        if (!empty($validated['batch_id']) && !empty($validated['teacher_id'])) {
+            $validation = $this->conflictService->validateClassCreation(
+                $validated['teacher_id'], $validated['batch_id'],
+                $validated['class_date'], $validated['start_time'], $validated['end_time']
+            );
+            if (!$validation['valid']) {
+                return response()->json(['success' => false, 'message' => $validation['conflicts'][0]['message']], 422);
+            }
         }
 
         $validated['created_by'] = auth()->id();
@@ -89,40 +92,25 @@ class OnlineClassApiController extends Controller
     {
         $validated = $request->validate([
             'course_id' => 'required|exists:courses,id',
-            'batch_id' => 'required|exists:batches,id',
+            'batch_id' => 'nullable|exists:batches,id',
             'module_id' => 'nullable|exists:course_modules,id',
             'lesson_id' => 'nullable|exists:lessons,id',
-            'teacher_id' => 'required|exists:trainers,id',
+            'teacher_id' => 'nullable|exists:trainers,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'class_date' => 'required|date',
             'start_time' => 'required',
             'end_time' => 'required',
             'duration' => 'nullable|integer|min:0',
-            'meeting_provider' => 'required|in:google_meet,zoom,teams,other',
+            'meeting_provider' => 'nullable|in:google_meet,zoom,teams,other',
             'meeting_url' => 'nullable|url|max:500',
             'meeting_id' => 'nullable|string|max:100',
             'meeting_password' => 'nullable|string|max:100',
             'is_attendance_required' => 'boolean',
-            'status' => 'required|in:scheduled,starting_soon,live,completed,cancelled,postponed',
-            'cancelled_reason' => 'nullable|string|max:500',
+            'status' => 'nullable|in:scheduled,starting_soon,live,completed,cancelled,postponed',
         ]);
-
-        $validation = $this->conflictService->validateClassCreation(
-            $validated['teacher_id'], $validated['batch_id'],
-            $validated['class_date'], $validated['start_time'], $validated['end_time'], $onlineClass->id
-        );
-        if (!$validation['valid']) {
-            return response()->json(['success' => false, 'message' => $validation['conflicts'][0]['message']], 422);
-        }
-
         $onlineClass->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Class updated.',
-            'data' => $onlineClass->fresh(['course', 'batch', 'teacher', 'module']),
-        ]);
+        return response()->json(['success' => true, 'message' => 'Class updated.', 'data' => $onlineClass->load(['course', 'batch', 'teacher', 'module'])]);
     }
 
     public function destroy(OnlineClass $onlineClass)

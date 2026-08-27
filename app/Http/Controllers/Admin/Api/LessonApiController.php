@@ -22,18 +22,16 @@ class LessonApiController extends Controller
     {
         $validated = $request->validate([
             'course_id' => 'required|exists:courses,id',
-            'module_id' => 'required|exists:course_modules,id',
+            'module_id' => 'nullable|exists:course_modules,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'content' => 'nullable|string',
             'video_url' => 'nullable|url|max:500',
             'duration' => 'nullable|integer|min:0',
-            'sequence' => 'integer|min:0',
+            'sequence' => 'nullable|integer|min:0',
             'is_free' => 'boolean',
-            'status' => 'required|in:draft,published,archived',
         ]);
         $validated['slug'] = Str::slug($validated['title']);
-        $validated['is_published'] = $validated['status'] === 'published';
         $lesson = Lesson::create($validated);
         return response()->json(['success' => true, 'lesson' => $lesson, 'message' => 'Lesson created.']);
     }
@@ -42,18 +40,16 @@ class LessonApiController extends Controller
     {
         $validated = $request->validate([
             'course_id' => 'required|exists:courses,id',
-            'module_id' => 'required|exists:course_modules,id',
+            'module_id' => 'nullable|exists:course_modules,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'content' => 'nullable|string',
             'video_url' => 'nullable|url|max:500',
             'duration' => 'nullable|integer|min:0',
-            'sequence' => 'integer|min:0',
+            'sequence' => 'nullable|integer|min:0',
             'is_free' => 'boolean',
-            'status' => 'required|in:draft,published,archived',
         ]);
         $validated['slug'] = Str::slug($validated['title']);
-        $validated['is_published'] = $validated['status'] === 'published';
         $lesson->update($validated);
         return response()->json(['success' => true, 'message' => 'Lesson updated.']);
     }

@@ -22,17 +22,18 @@ class QuizApiController extends Controller
         $validated = $request->validate([
             'course_id' => 'required|exists:courses,id',
             'module_id' => 'nullable|exists:course_modules,id',
-            'teacher_id' => 'required|exists:trainers,id',
+            'teacher_id' => 'nullable|exists:trainers,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'instructions' => 'nullable|string',
-            'time_limit' => 'nullable|integer|min:1',
-            'max_attempts' => 'required|integer|min:1',
-            'pass_marks' => 'required|integer|min:0',
+            'duration' => 'nullable|integer|min:1',
             'total_marks' => 'required|integer|min:1',
-            'status' => 'required|in:draft,published,archived',
+            'passing_marks' => 'nullable|integer|min:0',
+            'status' => 'nullable|in:draft,published,closed',
         ]);
-        $validated['is_published'] = $validated['status'] === 'published';
+        if (isset($validated['status'])) {
+            $validated['is_published'] = $validated['status'] === 'published';
+        }
         $quiz = Quiz::create($validated);
         return response()->json(['success' => true, 'quiz' => $quiz, 'message' => 'Quiz created.']);
     }
@@ -48,17 +49,18 @@ class QuizApiController extends Controller
         $validated = $request->validate([
             'course_id' => 'required|exists:courses,id',
             'module_id' => 'nullable|exists:course_modules,id',
-            'teacher_id' => 'required|exists:trainers,id',
+            'teacher_id' => 'nullable|exists:trainers,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'instructions' => 'nullable|string',
-            'time_limit' => 'nullable|integer|min:1',
-            'max_attempts' => 'required|integer|min:1',
-            'pass_marks' => 'required|integer|min:0',
+            'duration' => 'nullable|integer|min:1',
             'total_marks' => 'required|integer|min:1',
-            'status' => 'required|in:draft,published,archived',
+            'passing_marks' => 'nullable|integer|min:0',
+            'status' => 'nullable|in:draft,published,closed',
         ]);
-        $validated['is_published'] = $validated['status'] === 'published';
+        if (isset($validated['status'])) {
+            $validated['is_published'] = $validated['status'] === 'published';
+        }
         $quiz->update($validated);
         return response()->json(['success' => true, 'message' => 'Quiz updated.']);
     }

@@ -22,14 +22,14 @@ class AssignmentApiController extends Controller
             'course_id' => 'required|exists:courses,id',
             'module_id' => 'nullable|exists:course_modules,id',
             'lesson_id' => 'nullable|exists:lessons,id',
-            'teacher_id' => 'required|exists:trainers,id',
+            'teacher_id' => 'nullable|exists:trainers,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'instructions' => 'nullable|string',
             'due_date' => 'nullable|date',
-            'max_marks' => 'required|integer|min:1',
+            'max_marks' => 'nullable|integer|min:0',
             'attachment' => 'nullable|file|max:5120',
-            'status' => 'required|in:draft,published,closed',
+            'status' => 'nullable|in:draft,published,closed',
         ]);
         if ($request->hasFile('attachment')) {
             $validated['attachment_path'] = $request->file('attachment')->store('assignments', 'public');
@@ -44,14 +44,14 @@ class AssignmentApiController extends Controller
             'course_id' => 'required|exists:courses,id',
             'module_id' => 'nullable|exists:course_modules,id',
             'lesson_id' => 'nullable|exists:lessons,id',
-            'teacher_id' => 'required|exists:trainers,id',
+            'teacher_id' => 'nullable|exists:trainers,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'instructions' => 'nullable|string',
             'due_date' => 'nullable|date',
-            'max_marks' => 'required|integer|min:1',
+            'max_marks' => 'nullable|integer|min:0',
             'attachment' => 'nullable|file|max:5120',
-            'status' => 'required|in:draft,published,closed',
+            'status' => 'nullable|in:draft,published,closed',
         ]);
         if ($request->hasFile('attachment')) {
             $validated['attachment_path'] = $request->file('attachment')->store('assignments', 'public');

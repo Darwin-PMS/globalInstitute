@@ -13,6 +13,12 @@
 var Api = {
     csrfToken: (window.AdminConfig && window.AdminConfig.csrfToken) || '',
 
+    baseUrl: (function () {
+        var p = window.location.pathname;
+        var idx = p.indexOf('/admin');
+        return idx > 0 ? p.substring(0, idx) : '';
+    })(),
+
     setCsrfToken: function (token) { Api.csrfToken = token; },
 
     getHeaders: function (custom) {
@@ -33,7 +39,7 @@ var Api = {
     handle: function (res) {
         if (res.status === 401 || res.status === 419) {
             showToast('Your session has expired. Redirecting to sign in…', 'warning');
-            setTimeout(function () { window.location.href = '/admin/login'; }, 1200);
+            setTimeout(function () { window.location.href = Api.baseUrl + '/admin/login'; }, 1200);
             throw new Error('Session expired');
         }
 
@@ -58,7 +64,7 @@ var Api = {
 
         if (window.Loading) window.Loading.showPageLoading();
 
-        return fetch('/api/admin' + url, opts)
+        return fetch(Api.baseUrl + '/api/admin' + url, opts)
             .then(Api.handle)
             .finally(function () {
                 if (window.Loading) window.Loading.hidePageLoading();
@@ -503,7 +509,7 @@ var AdminApp = {
             html += '<div class="nav-section-label">' + escapeHtml(section.title) + '</div>';
 
             section.items.forEach(function (item) {
-                var href = item.spa ? ('#/' + item.route) : item.url;
+                var href = item.spa ? ('#/' + item.route) : (Api.baseUrl + item.url);
                 var external = item.spa ? '' : ' data-external="true"';
 
                 html += '<a href="' + href + '" class="nav-link" data-route="' + item.route + '"' + external + '>' +
