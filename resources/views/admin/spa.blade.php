@@ -107,6 +107,7 @@
         // CSRF token rather than a bearer token.
         window.AdminConfig = {
             csrfToken: @json(csrf_token()),
+            baseUrl: @json(url('/')),
             user: {
                 name: @json(auth()->user()->name ?? 'Admin'),
                 email: @json(auth()->user()->email ?? null)

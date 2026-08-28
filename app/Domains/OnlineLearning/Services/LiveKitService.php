@@ -36,10 +36,12 @@ class LiveKitService
             throw new \RuntimeException('LiveKit credentials not configured. Set LIVEKIT_API_KEY and LIVEKIT_API_SECRET in .env');
         }
 
-        $this->roomClient = new RoomServiceClient($url, $apiKey, $apiSecret);
+        // The REST API needs http(s):// while the WebSocket client uses wss://
+        $apiUrl = preg_replace('#^wss://#', 'https://', $url);
+        $this->roomClient = new RoomServiceClient($apiUrl, $apiKey, $apiSecret);
 
         if (config('livekit.recording.enabled')) {
-            $this->egressClient = new EgressServiceClient($url, $apiKey, $apiSecret);
+            $this->egressClient = new EgressServiceClient($apiUrl, $apiKey, $apiSecret);
         }
 
         $webhookSecret = config('livekit.webhook_secret');
@@ -220,7 +222,7 @@ class LiveKitService
     {
         try {
             $response = $this->roomClient->listParticipants($roomName);
-            return $response->getParticipants() ?? [];
+            return iterator_to_array($response->getParticipants()) ?? [];
         } catch (\Exception $e) {
             Log::warning('Failed to list LiveKit participants', ['room' => $roomName, 'error' => $e->getMessage()]);
             return [];

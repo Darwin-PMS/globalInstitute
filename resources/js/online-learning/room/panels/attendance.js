@@ -1,28 +1,27 @@
-import { skeletonRoster, emptyState, errorState, escapeHtml, formatDuration, panelHeading, toast } from '../lib/ui.js';
+import { escapeHtml, formatDuration, toast } from '../lib/ui.js';
 import { withButtonLoading } from '../../../ui/loading.js';
 
 /**
- * Attendance panel (host only).
+ * Attendance Panel — Live attendance tracking in the sidebar.
  *
- * The room measures presence, so this panel arrives pre-filled with a proposal
- * and asks the host to confirm rather than to type. Nothing is written until
- * they save, and the server re-derives the student mapping itself.
+ * Host-only. Shows measured presence with proposal system.
+ * Students see their own attendance status.
  */
 export default class AttendancePanel {
     constructor(ctx) {
         this.api = ctx.api;
+        this.caps = ctx.capabilities;
         this.mount = ctx.mount;
+        this.shell = ctx.shell;
         this.rows = [];
     }
 
     async render() {
-        this.mount.innerHTML = skeletonRoster(6);
-
         let res;
         try {
             res = await this.api.attendance();
         } catch (err) {
-            this.mount.innerHTML = errorState(err.message || 'Unable to load attendance.', 'att-retry');
+            this.mount.innerHTML = this.renderError(err.message || 'Unable to load attendance.');
             this.mount.querySelector('#att-retry')?.addEventListener('click', () => this.render());
             return;
         }
@@ -31,16 +30,26 @@ export default class AttendancePanel {
         const data = res.data || {};
 
         if (!data.tracking_enabled) {
-            this.mount.innerHTML = panelHeading('how_to_reg', 'Attendance') + emptyState({
-                icon: 'toggle_off',
-                title: 'Attendance is not tracked',
-                description: 'Turn attendance tracking on in room settings to record it for this class.',
-            });
+            this.mount.innerHTML = `
+                <div class="cr-panel" style="height:100%;display:flex;flex-direction:column">
+                    <div class="cr-panel-header">
+                        <h2 class="cr-panel-title">
+                            <span class="material-symbols-outlined" aria-hidden="true">how_to_reg</span>
+                            Attendance
+                        </h2>
+                    </div>
+                    <div class="cr-empty">
+                        <div class="cr-empty-icon">
+                            <span class="material-symbols-outlined">toggle_off</span>
+                        </div>
+                        <p class="cr-empty-title">Attendance is not tracked</p>
+                        <p class="cr-empty-desc">Enable attendance tracking in room settings.</p>
+                    </div>
+                </div>
+            `;
             return;
         }
 
-        // Merge the saved roster with what presence suggests, so a host sees both
-        // what is recorded and what actually happened.
         const proposalByUser = new Map((data.proposal || []).map((p) => [p.user_id, p]));
 
         this.rows = (data.roster || []).map((r) => {
@@ -64,50 +73,71 @@ export default class AttendancePanel {
         const stats = data.stats || {};
 
         if (!this.rows.length) {
-            this.mount.innerHTML = panelHeading('how_to_reg', 'Attendance') + emptyState({
-                icon: 'group_off',
-                title: 'No students to mark',
-                description: 'Nobody holds an active enrollment for this course and batch.',
-            });
+            this.mount.innerHTML = `
+                <div class="cr-panel" style="height:100%;display:flex;flex-direction:column">
+                    <div class="cr-panel-header">
+                        <h2 class="cr-panel-title">
+                            <span class="material-symbols-outlined" aria-hidden="true">how_to_reg</span>
+                            Attendance
+                        </h2>
+                    </div>
+                    <div class="cr-empty">
+                        <div class="cr-empty-icon">
+                            <span class="material-symbols-outlined">group_off</span>
+                        </div>
+                        <p class="cr-empty-title">No students to mark</p>
+                        <p class="cr-empty-desc">No active enrollments for this class.</p>
+                    </div>
+                </div>
+            `;
             return;
         }
 
         this.mount.innerHTML = `
-            ${panelHeading('how_to_reg', 'Attendance',
-                `<button type="button" id="att-apply-suggested"
-                    class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-[11px] font-semibold border border-slate-700 transition-colors">
-                    Apply measured
-                </button>`)}
+            <div class="cr-panel" style="height:100%;display:flex;flex-direction:column">
+                <div class="cr-panel-header">
+                    <h2 class="cr-panel-title">
+                        <span class="material-symbols-outlined" aria-hidden="true">how_to_reg</span>
+                        Attendance
+                    </h2>
+                    <button type="button" id="att-apply-suggested"
+                        class="cr-modal-btn secondary" style="font-size:10px;padding:4px 10px">
+                        Apply measured
+                    </button>
+                </div>
 
-            <div class="grid grid-cols-4 gap-3 p-4 mb-4 bg-slate-950/70 border border-slate-800 rounded-xl text-center">
-                ${this.stat('Marked', stats.total ?? 0, 'text-slate-100')}
-                ${this.stat('Present', stats.present ?? 0, 'text-emerald-400')}
-                ${this.stat('Late', stats.late ?? 0, 'text-amber-400')}
-                ${this.stat('Absent', stats.absent ?? 0, 'text-rose-400')}
-            </div>
+                <div class="cr-att-stats">
+                    <div>
+                        <div class="cr-att-stat-label">Marked</div>
+                        <div class="cr-att-stat-value" style="color:var(--cr-text-primary)">${stats.total ?? 0}</div>
+                    </div>
+                    <div>
+                        <div class="cr-att-stat-label">Present</div>
+                        <div class="cr-att-stat-value" style="color:#34d399">${stats.present ?? 0}</div>
+                    </div>
+                    <div>
+                        <div class="cr-att-stat-label">Late</div>
+                        <div class="cr-att-stat-value" style="color:#fbbf24">${stats.late ?? 0}</div>
+                    </div>
+                    <div>
+                        <div class="cr-att-stat-label">Absent</div>
+                        <div class="cr-att-stat-value" style="color:#f87171">${stats.absent ?? 0}</div>
+                    </div>
+                </div>
 
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl divide-y divide-slate-800/70 overflow-hidden">
-                ${this.rows.map((r) => this.row(r)).join('')}
-            </div>
+                <div id="att-list" class="flex-1 overflow-y-auto" style="margin:0 calc(var(--cr-space-3) * -1);padding:0 var(--cr-space-3)">
+                    ${this.rows.map((r) => this.row(r)).join('')}
+                </div>
 
-            <div class="mt-5">
-                <button type="button" id="att-save"
-                    class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/25 transition-all">
-                    Save attendance
-                </button>
+                <div style="padding-top:var(--cr-space-3);border-top:1px solid var(--cr-border-subtle);margin-top:var(--cr-space-3)">
+                    <button type="button" id="att-save" class="cr-modal-btn primary" style="width:100%">
+                        Save attendance
+                    </button>
+                </div>
             </div>
         `;
 
         this.bind();
-    }
-
-    stat(label, value, tone) {
-        return `
-            <div>
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">${label}</div>
-                <div class="text-base font-black mt-0.5 tabular-nums ${tone}">${value}</div>
-            </div>
-        `;
     }
 
     row(r) {
@@ -115,39 +145,33 @@ export default class AttendancePanel {
         const differs = r.suggested !== r.saved_status;
 
         return `
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center gap-3" data-att-row="${r.user_id}">
-                <div class="flex items-center gap-3 flex-1 min-w-0">
-                    <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-indigo-400 text-xs font-bold flex-shrink-0">
-                        ${escapeHtml((r.name || '?').charAt(0).toUpperCase())}
-                    </div>
-                    <div class="min-w-0">
-                        <p class="text-xs font-semibold text-slate-100 truncate">${escapeHtml(r.name)}</p>
-                        <p class="text-[10px] text-slate-500">
-                            ${r.code ? escapeHtml(r.code) + ' · ' : ''}in room ${formatDuration(r.attended_seconds)} (${r.attended_percent}%)
-                        </p>
-                    </div>
+            <div class="cr-att-row" data-att-row="${r.user_id}">
+                <div class="cr-participant-avatar">
+                    <div class="cr-avatar-sm">${this.getInitials(r.name)}</div>
                 </div>
-
-                <div class="flex items-center gap-2 flex-shrink-0">
-                    ${differs ? `<span class="text-[10px] text-amber-400 font-semibold" title="Measured presence differs from the saved mark">measured: ${escapeHtml(r.suggested)}</span>` : ''}
-
-                    <label class="sr-only" for="att-status-${r.user_id}">Status for ${escapeHtml(r.name)}</label>
-                    <select id="att-status-${r.user_id}" class="att-status bg-slate-950 border border-slate-700 text-slate-200 rounded-lg text-xs px-2.5 py-1.5 outline-none focus:border-indigo-500">
-                        ${statuses.map((s) => `<option value="${s}" ${r.saved_status === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}
-                    </select>
-
-                    <label class="sr-only" for="att-notes-${r.user_id}">Notes for ${escapeHtml(r.name)}</label>
-                    <input type="text" id="att-notes-${r.user_id}" class="att-notes bg-slate-950 border border-slate-700 text-slate-200 rounded-lg text-xs px-2.5 py-1.5 w-28 sm:w-36 outline-none focus:border-indigo-500"
-                           placeholder="Notes" value="${escapeHtml(r.notes)}">
+                <div class="cr-att-row-info">
+                    <p class="text-xs font-semibold text-slate-100 truncate">${escapeHtml(r.name)}</p>
+                    <p class="text-[10px] text-slate-500">
+                        ${r.code ? escapeHtml(r.code) + ' · ' : ''}in room ${formatDuration(r.attended_seconds)} (${r.attended_percent}%)
+                        ${differs ? `<span class="text-amber-400" title="Measured differs from saved"> · measured: ${escapeHtml(r.suggested)}</span>` : ''}
+                    </p>
                 </div>
+                <select class="cr-att-status att-status" data-user="${r.user_id}" aria-label="Status for ${escapeHtml(r.name)}">
+                    ${statuses.map((s) => `<option value="${s}" ${r.saved_status === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}
+                </select>
             </div>
         `;
+    }
+
+    getInitials(name) {
+        if (!name) return '?';
+        return name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
     }
 
     bind() {
         this.mount.querySelector('#att-apply-suggested')?.addEventListener('click', () => {
             this.rows.forEach((r) => {
-                const select = this.mount.querySelector(`#att-status-${r.user_id}`);
+                const select = this.mount.querySelector(`.att-status[data-user="${r.user_id}"]`);
                 if (select) select.value = r.suggested;
             });
             toast('Applied the measured attendance. Review, then save.', 'info');
@@ -158,7 +182,6 @@ export default class AttendancePanel {
             const records = [...this.mount.querySelectorAll('[data-att-row]')].map((row) => ({
                 user_id: Number(row.dataset.attRow),
                 status: row.querySelector('.att-status').value,
-                notes: row.querySelector('.att-notes').value || null,
             }));
 
             try {
@@ -169,6 +192,26 @@ export default class AttendancePanel {
                 toast(err.message || 'Unable to save attendance.', 'error');
             }
         }, 'Saving…'));
+    }
+
+    renderError(message) {
+        return `
+            <div class="cr-panel" style="height:100%;display:flex;flex-direction:column">
+                <div class="cr-panel-header">
+                    <h2 class="cr-panel-title">
+                        <span class="material-symbols-outlined" aria-hidden="true">how_to_reg</span>
+                        Attendance
+                    </h2>
+                </div>
+                <div class="cr-error">
+                    <div class="cr-error-icon">
+                        <span class="material-symbols-outlined text-[22px] text-red-400">error</span>
+                    </div>
+                    <p class="text-xs text-red-200 mt-2 mb-4">${escapeHtml(message)}</p>
+                    <button type="button" id="att-retry" class="cr-modal-btn secondary">Try again</button>
+                </div>
+            </div>
+        `;
     }
 
     destroy() {}

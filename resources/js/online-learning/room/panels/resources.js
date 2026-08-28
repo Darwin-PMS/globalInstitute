@@ -1,22 +1,21 @@
-import { skeletonResources, emptyState, errorState, escapeHtml, formatDateTime, panelHeading } from '../lib/ui.js';
+import { escapeHtml, formatDateTime, emptyState } from '../lib/ui.js';
 
 /**
- * Materials, recordings and assignments.
+ * Resource Panels — Materials, Recordings, Assignments for the sidebar.
  *
- * These three panels differ only in what they fetch and how a card reads, so
- * they share one implementation rather than being copied three times. Each is
- * still its own lazy-loaded module export.
+ * Shared factory implementation. Each panel fetches its own data and
+ * renders compact cards suitable for the sidebar width.
  */
 const KINDS = {
     materials: {
         icon: 'folder_open',
-        title: 'Class materials',
+        title: 'Resources',
         fetch: (api) => api.materials(),
         pick: (data) => data.materials || [],
         empty: {
             icon: 'folder_off',
-            title: 'No materials shared',
-            description: 'Files your instructor shares for this class will appear here.',
+            title: 'No resources shared',
+            description: 'Files your instructor shares will appear here.',
         },
         card: (item) => ({
             icon: fileIcon(item.file_type),
@@ -24,10 +23,8 @@ const KINDS = {
             subtitle: [item.file_type ? String(item.file_type).toUpperCase() : null,
                 item.download_count ? `${item.download_count} downloads` : null]
                 .filter(Boolean).join(' · '),
-            description: item.description,
             href: item.url,
             actionLabel: 'Open',
-            badge: item.is_published ? null : 'Draft',
         }),
     },
 
@@ -39,17 +36,15 @@ const KINDS = {
         empty: {
             icon: 'video_library',
             title: 'No recording yet',
-            description: 'Once this class is recorded and published it will show up here.',
+            description: 'Class recordings will appear here.',
         },
         card: (item) => ({
             icon: 'play_circle',
             title: item.title,
             subtitle: [item.duration ? `${item.duration} min` : null,
                 `${item.view_count || 0} views`].filter(Boolean).join(' · '),
-            description: item.description,
             href: item.url,
             actionLabel: 'Watch',
-            badge: item.is_published ? null : 'Draft',
         }),
     },
 
@@ -68,10 +63,8 @@ const KINDS = {
             title: item.title,
             subtitle: [item.due_date ? `Due ${formatDateTime(item.due_date)}` : 'No due date',
                 `${item.max_marks ?? 100} marks`].join(' · '),
-            description: item.description,
             href: null,
             actionLabel: null,
-            badge: item.status === 'published' ? null : item.status,
         }),
     },
 };
@@ -99,54 +92,94 @@ export function makeResourcePanel(kind) {
         }
 
         async render() {
-            this.mount.innerHTML = skeletonResources(3);
-
             let res;
             try {
                 res = await spec.fetch(this.api);
             } catch (err) {
-                this.mount.innerHTML = errorState(err.message || `Unable to load ${kind}.`, `${kind}-retry`);
+                this.mount.innerHTML = this.renderError(err.message || `Unable to load ${kind}.`);
                 this.mount.querySelector(`#${kind}-retry`)?.addEventListener('click', () => this.render());
                 return;
             }
-            if (!res) return; // superseded by a newer request
+            if (!res) return;
 
             const items = spec.pick(res.data || {});
 
             if (!items.length) {
-                this.mount.innerHTML = panelHeading(spec.icon, spec.title) + emptyState(spec.empty);
+                this.mount.innerHTML = `
+                    <div class="cr-panel" style="height:100%;display:flex;flex-direction:column">
+                        <div class="cr-panel-header">
+                            <h2 class="cr-panel-title">
+                                <span class="material-symbols-outlined" aria-hidden="true">${spec.icon}</span>
+                                ${spec.title}
+                            </h2>
+                        </div>
+                        <div class="cr-empty">
+                            <div class="cr-empty-icon">
+                                <span class="material-symbols-outlined">${spec.empty.icon}</span>
+                            </div>
+                            <p class="cr-empty-title">${spec.empty.title}</p>
+                            <p class="cr-empty-desc">${spec.empty.description}</p>
+                        </div>
+                    </div>
+                `;
                 return;
             }
 
-            this.mount.innerHTML =
-                panelHeading(spec.icon, spec.title,
-                    `<span class="text-[11px] text-slate-500">${items.length} item${items.length === 1 ? '' : 's'}</span>`) +
-                `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    ${items.map((item) => this.card(spec.card(item))).join('')}
-                </div>`;
+            this.mount.innerHTML = `
+                <div class="cr-panel" style="height:100%;display:flex;flex-direction:column">
+                    <div class="cr-panel-header">
+                        <h2 class="cr-panel-title">
+                            <span class="material-symbols-outlined" aria-hidden="true">${spec.icon}</span>
+                            ${spec.title}
+                        </h2>
+                        <span class="cr-panel-count">${items.length}</span>
+                    </div>
+
+                    <div id="${kind}-list" class="flex-1 overflow-y-auto" style="margin:0 calc(var(--cr-space-3) * -1);padding:0 var(--cr-space-3)">
+                        ${items.map((item) => this.card(spec.card(item))).join('')}
+                    </div>
+                </div>
+            `;
         }
 
         card(c) {
             return `
-                <article class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 hover:border-slate-700 transition-colors">
-                    <div class="flex items-start gap-3">
-                        <span class="material-symbols-outlined text-xl text-indigo-400 flex-shrink-0" aria-hidden="true">${c.icon}</span>
-                        <div class="min-w-0 flex-1">
-                            <h3 class="text-xs font-bold text-slate-100 leading-snug line-clamp-2">${escapeHtml(c.title)}</h3>
-                            <p class="text-[11px] text-slate-400 mt-0.5">${escapeHtml(c.subtitle)}</p>
-                        </div>
-                        ${c.badge ? `<span class="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700 capitalize">${escapeHtml(c.badge)}</span>` : ''}
+                <div class="cr-resource-card">
+                    <div class="cr-resource-icon">
+                        <span class="material-symbols-outlined" aria-hidden="true">${c.icon}</span>
                     </div>
+                    <div class="cr-resource-body">
+                        <div class="cr-resource-title">${escapeHtml(c.title)}</div>
+                        <div class="cr-resource-meta">${escapeHtml(c.subtitle)}</div>
+                        ${c.href && c.actionLabel ? `
+                            <a href="${escapeHtml(c.href)}" target="_blank" rel="noopener noreferrer"
+                               class="inline-flex items-center gap-1 text-[11px] text-indigo-400 font-semibold mt-1 hover:text-indigo-300 transition-colors">
+                                <span class="material-symbols-outlined text-[13px]" aria-hidden="true">open_in_new</span>
+                                ${escapeHtml(c.actionLabel)}
+                            </a>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
 
-                    ${c.description ? `<p class="text-[11px] text-slate-400 leading-relaxed line-clamp-3">${escapeHtml(c.description)}</p>` : ''}
-
-                    ${c.href && c.actionLabel ? `
-                        <a href="${escapeHtml(c.href)}" target="_blank" rel="noopener noreferrer"
-                           class="mt-auto inline-flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition-colors">
-                            <span class="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span> ${escapeHtml(c.actionLabel)}
-                        </a>
-                    ` : ''}
-                </article>
+        renderError(message) {
+            return `
+                <div class="cr-panel" style="height:100%;display:flex;flex-direction:column">
+                    <div class="cr-panel-header">
+                        <h2 class="cr-panel-title">
+                            <span class="material-symbols-outlined" aria-hidden="true">${spec.icon}</span>
+                            ${spec.title}
+                        </h2>
+                    </div>
+                    <div class="cr-error">
+                        <div class="cr-error-icon">
+                            <span class="material-symbols-outlined text-[22px] text-red-400">error</span>
+                        </div>
+                        <p class="text-xs text-red-200 mt-2 mb-4">${escapeHtml(message)}</p>
+                        <button type="button" id="${kind}-retry" class="cr-modal-btn secondary">Try again</button>
+                    </div>
+                </div>
             `;
         }
 

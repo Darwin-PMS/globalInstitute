@@ -4,11 +4,16 @@ import { escapeHtml, errorState, emptyState, formatTime, roomStateBadge, toast }
 import { skeletons, setButtonLoading, withButtonLoading, showPageLoading, hidePageLoading } from '../../ui/loading.js';
 
 /**
- * The Live Class Room shell.
+ * Live Class Room — Application Shell
  *
- * Owns the header, the tab strip and the room's state. Panels are loaded on
- * demand with dynamic import(), so opening a room downloads the stage and
- * nothing else; each other panel arrives the first time its tab is used.
+ * Orchestrates the classroom layout: header, video stage, sidebar panels,
+ * bottom control bar, and mobile bottom sheet. Panels are lazy-loaded on
+ * demand via dynamic import().
+ *
+ * Layout:
+ *   Header
+ *   ├── Stage (video/content) + Sidebar (tabbed panels)
+ *   └── Control Bar (persistent bottom)
  */
 export class RoomApp {
     constructor(config) {
@@ -17,16 +22,30 @@ export class RoomApp {
         this.channel = null;
 
         this.state = { room: null, klass: null, me: null, panels: [] };
-        this.activePanel = null;
+        this.stagePanel = null;
+        this.sidebarPanel = null;
         this.activeKey = null;
         this.panelCache = new Map();
         this.heartbeatTimer = null;
+        this.timerInterval = null;
+        this.recordingTimerInterval = null;
+        this.recordingStartTime = null;
+        this.sidebarCollapsed = false;
+        this.mobileSheetOpen = false;
+        this._listeners = {};
 
         this.els = {
             header: document.getElementById('room-header'),
             stage: document.getElementById('room-stage'),
-            tabs: document.getElementById('room-tabs'),
-            panel: document.getElementById('room-panel'),
+            sidebar: document.getElementById('room-sidebar'),
+            sidebarTabs: document.getElementById('sidebar-tabs'),
+            sidebarPanel: document.getElementById('sidebar-panel'),
+            controls: document.getElementById('room-controls'),
+            ctrlButtons: document.getElementById('ctrl-buttons'),
+            mobileSheet: document.getElementById('mobile-sheet'),
+            mobileSheetTitle: document.getElementById('mobile-sheet-title'),
+            mobileSheetBody: document.getElementById('mobile-sheet-body'),
+            modals: document.getElementById('room-modals'),
         };
     }
 
@@ -42,6 +61,15 @@ export class RoomApp {
         attendance: () => import('./panels/attendance.js').then((m) => m.default),
         activity: () => import('./panels/activity.js').then((m) => m.default),
     };
+
+    /** Sidebar tab definitions (order matters). */
+    static SIDEBAR_TABS = [
+        { key: 'roster', icon: 'groups', label: 'Participants', roles: ['host', 'moderator'] },
+        { key: 'chat', icon: 'chat', label: 'Chat' },
+        { key: 'attendance', icon: 'how_to_reg', label: 'Attendance', roles: ['host', 'moderator'] },
+        { key: 'activity', icon: 'history', label: 'Activity', roles: ['host', 'moderator'] },
+        { key: 'materials', icon: 'folder_open', label: 'Resources' },
+    ];
 
     async boot() {
         let res;
@@ -65,18 +93,21 @@ export class RoomApp {
         this.channel.start('state');
 
         this.renderHeader();
-        this.renderTabs();
+        this.renderSidebarTabs();
+        this.renderControlBar();
+        this.setControlsEnabled(false);
+        this.bindGlobalEvents();
 
-        // The stage is the landing panel and needs no extra request.
+        // Open the stage (video) as the default view
         await this.openPanel('stage');
 
-        // Anyone already inside keeps their presence alive.
+        // Start heartbeat for presence
         if (this.state.me.can_enter) this.startHeartbeat();
 
         this.bindLifecycle();
     }
 
-    /* --------------------------------------------------------------- state */
+    /* ═══════════════════════════════════════════════════════════ state */
 
     snapshot() {
         return { room: this.state.room, klass: this.state.klass, me: this.state.me };
@@ -89,8 +120,8 @@ export class RoomApp {
         this.state.room = room;
 
         if (onlineCount !== null) {
-            const el = document.getElementById('stage-online');
-            if (el) el.textContent = onlineCount + ' online';
+            const el = document.getElementById('header-online-count');
+            if (el) el.textContent = onlineCount;
             this.state.room.participant_count = onlineCount;
         }
 
@@ -99,114 +130,159 @@ export class RoomApp {
 
         if (stateMoved || hostMoved) {
             this.renderHeader();
-            this.activePanel?.onStateChange?.();
+            this.renderControlBar();
+            this.stagePanel?.onStateChange?.();
+            this.sidebarPanel?.onStateChange?.();
 
             if (stateMoved && room.state === 'live') {
                 toast('The class is now live.', 'success');
+                this.startSessionTimer();
             }
             if (stateMoved && room.state === 'ended') {
                 toast('This class has ended.', 'info');
                 this.stopHeartbeat();
+                this.stopSessionTimer();
             }
         }
     }
 
-    /* -------------------------------------------------------------- header */
+    /* ═══════════════════════════════════════════════════════════ header */
 
     renderHeader() {
         const { room, klass, me } = this.state;
+        if (!room || !klass) return;
 
-        this.els.header.innerHTML = `
-            <div class="max-w-[1400px] mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
-                <div class="min-w-0 flex items-center gap-3.5">
-                    <a href="${escapeHtml(this.config.exitUrl)}" data-room-exit
-                       class="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] transition-all duration-200"
-                       aria-label="Leave the room">
-                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">arrow_back</span>
-                    </a>
+        const isHost = me.role === 'host' || me.role === 'moderator';
+        const isLive = room.state === 'live';
 
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2.5 flex-wrap">
-                            ${roomStateBadge(room.state, room.state_label)}
-                            <span class="text-[11px] text-slate-500 truncate max-w-[180px]">${escapeHtml(klass.context || '')}</span>
-                        </div>
-                        <h1 class="text-[15px] font-bold text-white truncate mt-0.5 tracking-[-0.01em]">
-                            ${escapeHtml(klass.title)}
-                        </h1>
-                    </div>
-                </div>
+        // State badge
+        const badgeEl = document.getElementById('header-state-badge');
+        if (badgeEl) badgeEl.innerHTML = roomStateBadge(room.state, room.state_label);
 
-                <div class="flex items-center gap-3 flex-shrink-0">
-                    <span class="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
-                        <span class="material-symbols-outlined text-[15px]" aria-hidden="true">groups</span>
-                        <span data-room-online>${room.participant_count || 0} online</span>
-                    </span>
-                    <span class="hidden md:inline-flex px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] font-semibold text-slate-300 tracking-wide uppercase">
-                        ${escapeHtml(me.role_label)}
-                    </span>
-                </div>
-            </div>
-        `;
+        // Context (course name)
+        const ctxEl = document.getElementById('header-context');
+        if (ctxEl) ctxEl.textContent = klass.context || '';
 
-        this.els.header.querySelector('[data-room-exit]')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.exit();
-        });
+        // Title
+        const titleEl = document.getElementById('header-title');
+        if (titleEl) titleEl.textContent = klass.title || '';
+
+        // Live badge
+        const liveBadge = document.getElementById('header-live-badge');
+        if (liveBadge) liveBadge.style.display = isLive ? 'inline-flex' : 'none';
+
+        // Online count
+        const countEl = document.getElementById('header-online-count');
+        if (countEl) countEl.textContent = room.participant_count || 0;
+
+        // End class button (host only, when live)
+        const endBtn = document.getElementById('header-end-btn');
+        if (endBtn) {
+            endBtn.style.display = isHost && isLive ? 'inline-block' : 'none';
+        }
+
+        // Start session timer if live
+        if (isLive) this.startSessionTimer();
     }
 
-    /* ---------------------------------------------------------------- tabs */
+    startSessionTimer() {
+        if (this.timerInterval) return;
 
-    renderTabs() {
-        this.els.tabs.innerHTML = this.state.panels.map((p) => `
-            <button type="button" role="tab" data-panel="${p.key}" aria-selected="false"
-                class="tab-btn flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200
-                       bg-white/[0.02] border border-white/[0.06] text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] hover:border-white/[0.1]">
-                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">${p.icon}</span>
-                ${escapeHtml(p.label)}
+        const timerEl = document.getElementById('header-timer');
+        if (!timerEl) return;
+
+        // Use server start time if available, otherwise use now
+        const room = this.state.room;
+        const startedAt = room.started_at ? new Date(room.started_at).getTime() : Date.now();
+
+        const tick = () => {
+            const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+            const h = Math.floor(elapsed / 3600);
+            const m = Math.floor((elapsed % 3600) / 60);
+            const s = elapsed % 60;
+            timerEl.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        };
+
+        tick();
+        this.timerInterval = setInterval(tick, 1000);
+    }
+
+    stopSessionTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════ sidebar */
+
+    renderSidebarTabs() {
+        const { me } = this.state;
+        const isHost = me.role === 'host' || me.role === 'moderator';
+
+        const tabs = RoomApp.SIDEBAR_TABS.filter((tab) => {
+            if (tab.roles && !isHost) return false;
+            // Check if the panel is available from the server
+            return this.state.panels.some((p) => p.key === tab.key);
+        });
+
+        this.els.sidebarTabs.innerHTML = tabs.map((tab) => `
+            <button type="button" role="tab" data-sidebar-panel="${tab.key}"
+                    aria-selected="false" class="cr-sidebar-tab"
+                    aria-label="${tab.label}">
+                <span class="material-symbols-outlined" aria-hidden="true">${tab.icon}</span>
+                <span class="cr-sidebar-tab-label">${escapeHtml(tab.label)}</span>
+                ${tab.key === 'chat' ? '<span id="chat-unread-badge" class="cr-tab-badge" style="display:none"></span>' : ''}
             </button>
         `).join('');
 
-        this.els.tabs.querySelectorAll('[data-panel]').forEach((btn) => {
-            btn.addEventListener('click', () => this.openPanel(btn.dataset.panel));
+        this.els.sidebarTabs.querySelectorAll('[data-sidebar-panel]').forEach((btn) => {
+            btn.addEventListener('click', () => this.toggleSidebarPanel(btn.dataset.sidebarPanel));
         });
     }
 
-    markActiveTab(key) {
-        this.els.tabs.querySelectorAll('[data-panel]').forEach((btn) => {
-            const active = btn.dataset.panel === key;
+    markActiveSidebarTab(key) {
+        this.els.sidebarTabs.querySelectorAll('[data-sidebar-panel]').forEach((btn) => {
+            const active = btn.dataset.sidebarPanel === key;
             btn.setAttribute('aria-selected', active ? 'true' : 'false');
-
-            if (active) {
-                btn.className = `tab-btn flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200
-                    bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 shadow-[0_0_12px_-4px_rgba(99,102,241,0.3)]`;
-            } else {
-                btn.className = `tab-btn flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200
-                    bg-white/[0.02] border border-white/[0.06] text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] hover:border-white/[0.1]`;
-            }
         });
     }
 
-    /* -------------------------------------------------------------- panels */
+    toggleSidebarPanel(key) {
+        // If clicking the already active panel, collapse sidebar
+        if (this.activeKey === key && !this.isMobile()) {
+            this.collapseSidebar();
+            return;
+        }
+        this.openSidebarPanel(key);
+    }
 
-    async openPanel(key) {
+    async openSidebarPanel(key) {
         if (this.activeKey === key) return;
 
         const loader = RoomApp.PANEL_LOADERS[key];
         if (!loader) return;
 
-        this.activePanel?.destroy?.();
-        this.activePanel = null;
+        // Destroy previous sidebar panel only
+        this.sidebarPanel?.destroy?.();
+        this.sidebarPanel = null;
 
-        this.markActiveTab(key);
+        this.markActiveSidebarTab(key);
         this.activeKey = key;
 
-        const mount = key === 'stage' ? this.els.stage : this.els.panel;
-
-        if (key !== 'stage') {
-            this.els.panel.innerHTML = this.loadingBlock(key);
-            this.els.panel.classList.add('panel-enter');
-            setTimeout(() => this.els.panel.classList.remove('panel-enter'), 500);
+        // Expand sidebar on desktop
+        if (!this.isMobile()) {
+            this.expandSidebar();
         }
+
+        const mount = this.isMobile() ? this.els.mobileSheetBody : this.els.sidebarPanel;
+
+        if (this.isMobile()) {
+            const tab = RoomApp.SIDEBAR_TABS.find((t) => t.key === key);
+            this.openMobileSheet(tab?.label || key);
+        }
+
+        mount.innerHTML = this.loadingBlock(key);
 
         let PanelClass = this.panelCache.get(key);
         if (!PanelClass) {
@@ -228,40 +304,233 @@ export class RoomApp {
             shell: this,
         });
 
-        this.activePanel = panel;
+        this.sidebarPanel = panel;
 
         try {
             await panel.render();
         } catch (err) {
             mount.innerHTML = errorState(err.message || 'This section could not be displayed.');
         }
+    }
 
-        if (key !== 'stage') this.els.panel.focus({ preventScroll: true });
+    collapseSidebar() {
+        this.els.sidebar.classList.add('collapsed');
+        this.sidebarCollapsed = true;
+        this.sidebarPanel?.destroy?.();
+        this.sidebarPanel = null;
+        this.activeKey = null;
+        this.markActiveSidebarTab(null);
+    }
+
+    expandSidebar() {
+        this.els.sidebar.classList.remove('collapsed');
+        this.sidebarCollapsed = false;
     }
 
     loadingBlock(key = null) {
         const byPanel = {
-            chat: () => skeletons.chat({ rows: 5 }),
-            materials: () => skeletons.cards({ count: 3, media: false }),
-            recordings: () => skeletons.cards({ count: 3, media: false }),
-            assignments: () => skeletons.cards({ count: 3, media: false }),
-            roster: () => skeletons.roster({ rows: 6 }),
-            attendance: () => skeletons.roster({ rows: 6 }),
-            activity: () => skeletons.list({ rows: 5 }),
+            chat: () => skeletons.chat?.({ rows: 5 }) || '<div class="cr-panel"><div class="cr-skeleton" style="height:200px"></div></div>',
+            materials: () => skeletons.cards?.({ count: 3, media: false }) || '<div class="cr-panel"><div class="cr-skeleton" style="height:200px"></div></div>',
+            recordings: () => skeletons.cards?.({ count: 3, media: false }) || '<div class="cr-panel"><div class="cr-skeleton" style="height:200px"></div></div>',
+            assignments: () => skeletons.cards?.({ count: 3, media: false }) || '<div class="cr-panel"><div class="cr-skeleton" style="height:200px"></div></div>',
+            roster: () => skeletons.roster?.({ rows: 6 }) || '<div class="cr-panel"><div class="cr-skeleton" style="height:200px"></div></div>',
+            attendance: () => skeletons.roster?.({ rows: 6 }) || '<div class="cr-panel"><div class="cr-skeleton" style="height:200px"></div></div>',
+            activity: () => skeletons.list?.({ rows: 5 }) || '<div class="cr-panel"><div class="cr-skeleton" style="height:200px"></div></div>',
         };
 
-        return (byPanel[key] || (() => skeletons.list({ rows: 4 })))();
+        return (byPanel[key] || (() => '<div class="cr-panel"><div class="cr-skeleton" style="height:200px"></div></div>'))();
     }
 
-    /* ----------------------------------------------------- host lifecycle */
+    /* ═══════════════════════════════════════════════════════════ stage (legacy panel loader) */
+
+    async openPanel(key) {
+        if (key === 'stage' && this.stagePanel) return;
+
+        const loader = RoomApp.PANEL_LOADERS[key];
+        if (!loader) return;
+
+        if (key === 'stage') {
+            this.stagePanel?.destroy?.();
+            this.stagePanel = null;
+        }
+
+        const mount = this.els.stage;
+
+        let PanelClass = this.panelCache.get(key);
+        if (!PanelClass) {
+            try {
+                PanelClass = await loader();
+                this.panelCache.set(key, PanelClass);
+            } catch (err) {
+                mount.innerHTML = errorState('The classroom failed to load. Check your connection and try again.');
+                return;
+            }
+        }
+
+        const panel = new PanelClass({
+            api: this.api,
+            channel: this.channel,
+            capabilities: this.state.me,
+            userId: this.config.user.id,
+            mount,
+            shell: this,
+        });
+
+        if (key === 'stage') {
+            this.stagePanel = panel;
+        }
+
+        try {
+            await panel.render();
+        } catch (err) {
+            mount.innerHTML = errorState(err.message || 'The classroom could not be displayed.');
+        }
+    }
+
+    /* ═════════════════════════════════════════════════════ control bar */
+
+    renderControlBar() {
+        const { me } = this.state;
+        const isHost = me.role === 'host' || me.role === 'moderator';
+
+        const buttons = [];
+
+        // Mic
+        buttons.push({ id: 'ctrl-mic', icon: 'mic', iconOff: 'mic_off', tooltip: 'Toggle Microphone', shortcut: 'M' });
+
+        // Camera
+        buttons.push({ id: 'ctrl-cam', icon: 'videocam', iconOff: 'videocam_off', tooltip: 'Toggle Camera', shortcut: 'V' });
+
+        // Screen Share
+        buttons.push({ id: 'ctrl-screen', icon: 'screen_share', iconOff: 'stop_screen_share', tooltip: 'Share Screen' });
+
+        // Separator
+        buttons.push({ separator: true });
+
+        // Raise Hand
+        buttons.push({ id: 'ctrl-hand', icon: 'pan_tool', iconOff: 'back_hand', tooltip: 'Raise Hand', shortcut: 'H' });
+
+        if (isHost) {
+            // Recording
+            buttons.push({ id: 'ctrl-record', icon: 'radio_button_checked', tooltip: 'Record', shortcut: 'R' });
+        }
+
+        // Separator before Leave
+        buttons.push({ separator: true });
+
+        // Leave / End
+        if (isHost) {
+            // Host has Chat quick access
+            buttons.push({ id: 'ctrl-chat-quick', icon: 'chat', tooltip: 'Chat', shortcut: 'C' });
+        }
+
+        buttons.push({
+            id: 'ctrl-leave',
+            icon: 'call_end',
+            label: isHost ? 'End Class' : 'Leave',
+            danger: true,
+            shortcut: 'L',
+        });
+
+        this.els.ctrlButtons.innerHTML = buttons.map((btn) => {
+            if (btn.separator) return '<div class="cr-ctrl-sep"></div>';
+
+            const classes = ['cr-ctrl-btn'];
+            if (btn.danger) classes.push('danger');
+
+            return `<button id="${btn.id}" class="${classes.join(' ')}"
+                        data-tooltip="${btn.tooltip}${btn.shortcut ? ` (${btn.shortcut})` : ''}"
+                        aria-label="${btn.tooltip}">
+                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">${btn.icon}</span>
+                ${btn.label ? `<span class="hidden sm:inline">${btn.label}</span>` : ''}
+            </button>`;
+        }).join('');
+
+        this.bindControlEvents();
+    }
+
+    bindControlEvents() {
+        const $ = (sel) => this.els.ctrlButtons.querySelector(sel);
+
+        $('#ctrl-mic')?.addEventListener('click', () => this.emit('control:microphone'));
+        $('#ctrl-cam')?.addEventListener('click', () => this.emit('control:camera'));
+        $('#ctrl-screen')?.addEventListener('click', () => this.emit('control:screenShare'));
+        $('#ctrl-hand')?.addEventListener('click', () => this.emit('control:handRaise'));
+        $('#ctrl-record')?.addEventListener('click', () => this.emit('control:recording'));
+        $('#ctrl-leave')?.addEventListener('click', () => this.leaveClassroom());
+        $('#ctrl-chat-quick')?.addEventListener('click', () => this.toggleSidebarPanel('chat'));
+        $('#ctrl-toggle-sidebar')?.addEventListener('click', () => this.toggleSidebar());
+    }
+
+    /** Simple event emitter for stage ↔ controls communication. */
+
+    on(event, handler) {
+        if (!this._listeners[event]) this._listeners[event] = new Set();
+        this._listeners[event].add(handler);
+        return () => this._listeners[event]?.delete(handler);
+    }
+
+    emit(event, data) {
+        this._listeners[event]?.forEach((fn) => {
+            try { fn(data); } catch (e) { console.error(`[RoomApp] Event handler error: ${event}`, e); }
+        });
+    }
+
+    updateControlBtn(btnId, { active, muted, disabled, icon } = {}) {
+        const btn = this.els.ctrlButtons.querySelector(`#${btnId}`);
+        if (!btn) return;
+
+        const span = btn.querySelector('.material-symbols-outlined');
+        if (span && icon) span.textContent = icon;
+
+        btn.classList.toggle('active', !!active);
+        btn.classList.toggle('muted', !!muted);
+        btn.disabled = !!disabled;
+    }
+
+    setControlsEnabled(enabled) {
+        const skipIds = ['ctrl-leave', 'ctrl-toggle-sidebar'];
+        this.els.ctrlButtons.querySelectorAll('.cr-ctrl-btn').forEach((btn) => {
+            if (skipIds.includes(btn.id)) return;
+            btn.disabled = !enabled;
+            btn.style.opacity = enabled ? '' : '0.4';
+            btn.style.pointerEvents = enabled ? '' : 'none';
+        });
+    }
+
+    toggleSidebar() {
+        if (this.sidebarCollapsed) {
+            this.openSidebarPanel(this.activeKey || 'chat');
+        } else {
+            this.collapseSidebar();
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════ mobile */
+
+    isMobile() {
+        return window.innerWidth < 768;
+    }
+
+    openMobileSheet(title) {
+        this.els.mobileSheet.style.display = 'block';
+        this.els.mobileSheetTitle.textContent = title;
+        this.mobileSheetOpen = true;
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeMobileSheet() {
+        this.els.mobileSheet.style.display = 'none';
+        this.mobileSheetOpen = false;
+        document.body.style.overflow = '';
+        this.sidebarPanel?.destroy?.();
+        this.sidebarPanel = null;
+        this.activeKey = null;
+    }
+
+    /* ═════════════════════════════════════════════════════ host lifecycle */
 
     async startClass() {
-        const btn = document.getElementById('stage-start');
-        if (btn) return withButtonLoading(btn, () => this.performStart(), 'Starting…');
-        return this.performStart();
-    }
-
-    async performStart() {
         try {
             const res = await this.api.start();
             if (res?.data?.room) this.applyRoomState(res.data.room);
@@ -273,22 +542,53 @@ export class RoomApp {
     }
 
     async endClass() {
-        if (!window.confirm('End this class for everyone?')) return;
-
-        const btn = document.getElementById('stage-end');
-        if (btn) return withButtonLoading(btn, () => this.performEnd(), 'Ending…');
-        return this.performEnd();
+        this.showModal({
+            title: 'End this class?',
+            body: 'All participants will be disconnected. This action cannot be undone.',
+            confirmLabel: 'End Class',
+            confirmClass: 'danger',
+            onConfirm: async () => {
+                try {
+                    const res = await this.api.end();
+                    if (res?.data?.room) this.applyRoomState(res.data.room);
+                    toast(res?.message || 'The class has ended.', 'info');
+                } catch (err) {
+                    toast(err.message || 'Unable to end the class.', 'error');
+                }
+            },
+        });
     }
 
-    async performEnd() {
+    async leaveClassroom() {
+        this.showModal({
+            title: 'Leave classroom?',
+            body: 'You can rejoin the class as long as it is still in session.',
+            confirmLabel: 'Leave',
+            confirmClass: 'danger',
+            onConfirm: () => this.exit(),
+        });
+    }
+
+    async exit() {
+        this.stopHeartbeat();
+        this.stopSessionTimer();
+        this.channel?.destroy();
+
+        // Disconnect LiveKit room
         try {
-            const res = await this.api.end();
-            if (res?.data?.room) this.applyRoomState(res.data.room);
-            toast(res?.message || 'The class has ended.', 'info');
-        } catch (err) {
-            toast(err.message || 'Unable to end the class.', 'error');
-        }
+            this.stagePanel?.leaveRoom?.();
+            this.stagePanel?.destroy?.();
+            this.sidebarPanel?.destroy?.();
+        } catch { /* best-effort */ }
+
+        try {
+            await this.api.leave();
+        } catch { /* best-effort */ }
+
+        window.location.href = this.config.exitUrl;
     }
+
+    /* ═════════════════════════════════════════════════════ settings */
 
     openSettings() {
         const settings = this.state.room.settings || {};
@@ -303,81 +603,123 @@ export class RoomApp {
             ['allow_late_join', 'Allow late joining'],
         ];
 
-        this.els.panel.innerHTML = `
-            <div class="max-w-xl bg-[#0c1018] border border-white/[0.06] rounded-2xl p-6 space-y-5 shadow-2xl">
-                <div>
-                    <h2 class="text-sm font-bold text-white">Room settings</h2>
-                    <p class="text-[11px] text-slate-500 mt-0.5">These apply to this class only.</p>
+        const html = `
+            <div class="cr-settings">
+                <div class="cr-settings-group">
+                    <div class="cr-settings-label">Room Settings</div>
+                    ${toggles.map(([key, label]) => `
+                        <div class="cr-settings-toggle">
+                            <span class="cr-settings-toggle-label">${escapeHtml(label)}</span>
+                            <div class="cr-switch ${settings[key] ? 'on' : ''}" data-setting="${key}" role="switch"
+                                 aria-checked="${settings[key] ? 'true' : 'false'}" tabindex="0"></div>
+                        </div>
+                    `).join('')}
                 </div>
 
-                <div class="space-y-3">
-                    ${toggles.map(([key, label]) => `
-                        <label class="flex items-center justify-between gap-4 cursor-pointer group">
-                            <span class="text-xs text-slate-300 group-hover:text-white transition-colors">${label}</span>
-                            <input type="checkbox" data-setting="${key}" ${settings[key] ? 'checked' : ''}
-                                   class="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-500 focus:ring-indigo-500/30 focus:ring-offset-0">
-                        </label>
-                    `).join('')}
-
-                    <label class="flex items-center justify-between gap-4">
-                        <span class="text-xs text-slate-300">Lobby opens (minutes before)</span>
+                <div class="cr-settings-group">
+                    <div class="cr-settings-label">Lobby</div>
+                    <div class="cr-settings-toggle">
+                        <span class="cr-settings-toggle-label">Opens (minutes before)</span>
                         <input type="number" min="0" max="180" data-setting="lobby_opens_minutes_before"
                                value="${settings.lobby_opens_minutes_before ?? 15}"
-                               class="w-20 bg-slate-950 border border-white/[0.06] text-slate-200 text-xs rounded-xl px-2.5 py-1.5 outline-none focus:border-indigo-500/50 transition-colors">
-                    </label>
+                               class="w-20 bg-white/[0.04] border border-white/[0.06] text-white text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-500/50">
+                    </div>
                 </div>
 
-                <div class="flex justify-end gap-2 pt-4 border-t border-white/[0.06]">
-                    <button type="button" id="settings-cancel"
-                        class="px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-semibold transition-all border border-white/[0.06]">Cancel</button>
-                    <button type="button" id="settings-save"
-                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Save settings</button>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--cr-border-subtle)">
+                    <button type="button" id="settings-cancel" class="cr-modal-btn secondary">Cancel</button>
+                    <button type="button" id="settings-save" class="cr-modal-btn primary">Save settings</button>
                 </div>
             </div>
         `;
 
-        this.activePanel?.destroy?.();
-        this.activePanel = null;
-        this.activeKey = 'settings';
-        this.markActiveTab('settings');
+        // Use sidebar panel for settings on desktop, or mobile sheet
+        if (this.isMobile()) {
+            this.openMobileSheet('Settings');
+            this.els.mobileSheetBody.innerHTML = html;
+        } else {
+            this.expandSidebar();
+            this.els.sidebarPanel.innerHTML = html;
+        }
 
-        this.els.panel.querySelector('#settings-cancel').addEventListener('click', () => {
-            this.activeKey = null;
-            this.openPanel('activity');
+        // Bind toggle switches
+        this.els.sidebarPanel.querySelectorAll('.cr-switch[data-setting]').forEach((sw) => {
+            sw.addEventListener('click', () => {
+                const isOn = sw.classList.toggle('on');
+                sw.setAttribute('aria-checked', isOn);
+            });
+            sw.addEventListener('keydown', (e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    sw.click();
+                }
+            });
         });
 
-        this.els.panel.querySelector('#settings-save').addEventListener('click', async (e) => {
-            const btn = e.currentTarget;
+        document.getElementById('settings-cancel')?.addEventListener('click', () => {
+            if (this.isMobile()) {
+                this.closeMobileSheet();
+            } else {
+                this.activeKey = null;
+                this.openSidebarPanel('chat');
+            }
+        });
+
+        document.getElementById('settings-save')?.addEventListener('click', async () => {
             const payload = {};
-
-            this.els.panel.querySelectorAll('[data-setting]').forEach((input) => {
-                payload[input.dataset.setting] = input.type === 'checkbox'
-                    ? input.checked
-                    : Number(input.value);
+            this.els.sidebarPanel.querySelectorAll('[data-setting]').forEach((el) => {
+                if (el.classList.contains('cr-switch')) {
+                    payload[el.dataset.setting] = el.classList.contains('on');
+                } else {
+                    payload[el.dataset.setting] = el.type === 'checkbox' ? el.checked : Number(el.value);
+                }
             });
-
-            btn.disabled = true;
-            btn.textContent = 'Saving…';
 
             try {
                 const res = await this.api.updateSettings(payload);
                 if (res?.data?.room) this.state.room = res.data.room;
                 if (res?.data?.me) this.state.me = { ...this.state.me, ...res.data.me };
-
                 toast(res?.message || 'Settings saved.', 'success');
-
-                this.renderTabs();
+                this.renderSidebarTabs();
                 this.activeKey = null;
-                await this.openPanel('stage');
+                if (this.isMobile()) this.closeMobileSheet();
             } catch (err) {
                 toast(err.message || 'Unable to save settings.', 'error');
-                btn.disabled = false;
-                btn.textContent = 'Save settings';
             }
         });
     }
 
-    /* ----------------------------------------------------------- presence */
+    /* ═══════════════════════════════════════════════════ modals */
+
+    showModal({ title, body, confirmLabel = 'Confirm', confirmClass = 'primary', onConfirm }) {
+        const id = 'modal-' + Date.now();
+        this.els.modals.innerHTML = `
+            <div class="cr-modal-backdrop" data-modal="${id}">
+                <div class="cr-modal" role="alertdialog" aria-modal="true">
+                    <h3 class="cr-modal-title">${escapeHtml(title)}</h3>
+                    <p class="cr-modal-body">${escapeHtml(body)}</p>
+                    <div class="cr-modal-actions">
+                        <button class="cr-modal-btn secondary" data-modal-cancel="${id}">Cancel</button>
+                        <button class="cr-modal-btn ${confirmClass}" data-modal-confirm="${id}">${escapeHtml(confirmLabel)}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const backdrop = this.els.modals.querySelector(`[data-modal="${id}"]`);
+        const cleanup = () => backdrop?.remove();
+
+        backdrop.querySelector(`[data-modal-cancel="${id}"]`)?.addEventListener('click', cleanup);
+        backdrop.querySelector(`[data-modal-confirm="${id}"]`)?.addEventListener('click', async () => {
+            cleanup();
+            await onConfirm?.();
+        });
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) cleanup();
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════ presence */
 
     startHeartbeat() {
         if (this.heartbeatTimer) return;
@@ -398,7 +740,18 @@ export class RoomApp {
         }
     }
 
+    /* ═══════════════════════════════════════════════ lifecycle */
+
     bindLifecycle() {
+        // Warn before leaving during live class
+        window.addEventListener('beforeunload', (e) => {
+            if (this.state.room?.state === 'live') {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        // Send beacon on page hide
         window.addEventListener('pagehide', () => {
             if (navigator.sendBeacon) {
                 const url = `${this.config.baseUrl || ''}/api/online-learning/rooms/${this.config.roomKey}/leave`;
@@ -409,21 +762,98 @@ export class RoomApp {
         });
     }
 
-    async exit() {
-        this.stopHeartbeat();
-        this.channel?.destroy();
+    bindGlobalEvents() {
+        // Mobile sheet close
+        this.els.mobileSheet.querySelectorAll('[data-mobile-close]').forEach((el) => {
+            el.addEventListener('click', () => this.closeMobileSheet());
+        });
 
-        try {
-            await this.api.leave();
-        } catch {
-            // Leaving is best-effort
+        // Header buttons
+        document.getElementById('header-settings-btn')?.addEventListener('click', () => this.openSettings());
+        document.getElementById('header-end-btn')?.addEventListener('click', () => this.endClass());
+        document.getElementById('header-more-btn')?.addEventListener('click', () => this.showMoreMenu());
+
+        // Back button
+        this.els.header.querySelector('[data-room-exit]')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.leaveClassroom();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+
+        // Responsive: collapse sidebar on resize to mobile
+        window.addEventListener('resize', () => {
+            if (this.isMobile() && !this.sidebarCollapsed) {
+                // On mobile, sidebar is hidden, panels open in bottom sheet
+            }
+        });
+    }
+
+    handleKeyboard(e) {
+        // Ignore if typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+
+        // Escape closes mobile sheet or sidebar
+        if (e.key === 'Escape') {
+            if (this.mobileSheetOpen) {
+                this.closeMobileSheet();
+                return;
+            }
+            if (!this.sidebarCollapsed && this.activeKey) {
+                this.collapseSidebar();
+                return;
+            }
         }
 
-        window.location.href = this.config.exitUrl;
+        // Don't process shortcuts if modifier keys are held (except shift for ?)
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        switch (e.key.toLowerCase()) {
+            case 'm': this.emit('control:microphone'); break;
+            case 'v': this.emit('control:camera'); break;
+            case 'h': this.emit('control:handRaise'); break;
+            case 'c':
+                e.preventDefault();
+                this.toggleSidebarPanel('chat');
+                break;
+            case 'l':
+                this.leaveClassroom();
+                break;
+            case 'f':
+                this.emit('control:fullscreen');
+                break;
+            case '?':
+                this.showKeyboardShortcuts();
+                break;
+        }
+    }
+
+    showMoreMenu() {
+        // For now, open settings. Can be expanded to a dropdown.
+        this.openSettings();
+    }
+
+    showKeyboardShortcuts() {
+        this.showModal({
+            title: 'Keyboard Shortcuts',
+            body: [
+                ['M', 'Toggle microphone'],
+                ['V', 'Toggle camera'],
+                ['H', 'Raise/lower hand'],
+                ['C', 'Open chat'],
+                ['F', 'Fullscreen'],
+                ['L', 'Leave class'],
+                ['Esc', 'Close panel'],
+            ].map(([key, desc]) => `<span class="cr-kbd">${key}</span> ${desc}`).join('<br>'),
+            confirmLabel: 'Got it',
+            confirmClass: 'primary',
+        });
     }
 
     handleSessionExpired() {
         this.stopHeartbeat();
+        this.stopSessionTimer();
         toast('Your session has expired. Redirecting to sign in…', 'warning');
         setTimeout(() => { window.location.href = '/login'; }, 1500);
     }
@@ -434,20 +864,25 @@ export class RoomApp {
 
         this.els.header.innerHTML = '';
         this.els.stage.innerHTML = '';
-        this.els.tabs.innerHTML = '';
+        this.els.sidebar.innerHTML = '';
+        this.els.controls.innerHTML = '';
 
-        this.els.panel.innerHTML = `
-            <div class="max-w-md mx-auto mt-10">
-                ${emptyState({
-                    icon: forbidden ? 'lock' : missing ? 'meeting_room' : 'error',
-                    title: forbidden
-                        ? 'You are not in this class'
-                        : missing ? 'This room no longer exists' : 'The room could not be opened',
-                    description: err.message || '',
-                    action: `<a href="${escapeHtml(this.config.exitUrl)}"
-                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-lg shadow-indigo-500/20">
-                        <span class="material-symbols-outlined text-sm" aria-hidden="true">arrow_back</span> Back to my classes</a>`,
-                })}
+        this.els.stage.innerHTML = `
+            <div class="cr-waiting">
+                <div class="cr-waiting-icon" style="animation:none">
+                    <span class="material-symbols-outlined text-[36px] text-slate-400">
+                        ${forbidden ? 'lock' : missing ? 'meeting_room' : 'error'}
+                    </span>
+                </div>
+                <h2 class="text-lg font-bold text-white">
+                    ${forbidden ? 'You are not in this class' : missing ? 'This room no longer exists' : 'The room could not be opened'}
+                </h2>
+                <p class="text-sm text-slate-400">${escapeHtml(err.message || '')}</p>
+                <a href="${escapeHtml(this.config.exitUrl)}"
+                   class="cr-join-btn" style="margin-top:16px;text-decoration:none">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+                    Back to my classes
+                </a>
             </div>
         `;
     }

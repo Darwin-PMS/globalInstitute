@@ -50,7 +50,7 @@
                     {{ $class['teacher']['name'] }}
                 </div>
                 @endif
-                <a href="{{ url('/learning/room/resolve/'.$class['id']) }}" target="_blank"
+                <a href="{{ route('learning.room.resolve', $class['id']) }}" target="_blank"
                    style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;border-radius:10px;background:#059669;color:white;text-decoration:none;font-size:13px;font-weight:600;transition:all 0.15s;">
                     <span class="material-symbols-outlined" style="font-size:18px;">videocam</span>
                     Join Now
@@ -105,7 +105,7 @@
                 </div>
                 @endif
                 <div style="display:flex;gap:8px;">
-                    <a href="{{ url('/learning/room/resolve/'.$class['id']) }}" target="_blank"
+                    <a href="{{ route('learning.room.resolve', $class['id']) }}" target="_blank"
                        style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:10px;background:#6366f1;color:white;text-decoration:none;font-size:13px;font-weight:600;">
                         <span class="material-symbols-outlined" style="font-size:18px;">login</span>
                         Enter Lobby

@@ -13,6 +13,7 @@ class OnlineClass extends Model
         'meeting_password', 'recording_url', 'status', 'is_attendance_required',
         'is_recording_available', 'cancelled_reason', 'rescheduled_from', 'created_by',
         'timezone', 'class_type', 'access_policy', 'tenant_id',
+        'actual_start_at', 'actual_end_at',
     ];
 
     protected $casts = [

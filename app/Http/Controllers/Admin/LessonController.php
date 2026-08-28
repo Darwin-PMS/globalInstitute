@@ -31,7 +31,7 @@ class LessonController extends Controller
     public function create(Request $request)
     {
         $courses = Course::orderBy('title')->get();
-        $modules = CourseModule::when($request->course_id, fn($q) => $q->where('course_id', $request->course_id))->orderBy('title')->get();
+        $modules = CourseModule::when($request->course_id, fn($q) => $q->where('course_id', $request->course_id))->orderBy('name')->get();
         return view('admin.lessons.create', compact('courses', 'modules'));
     }
 

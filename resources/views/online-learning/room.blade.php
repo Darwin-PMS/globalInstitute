@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="color-scheme" content="dark">
     <meta name="robots" content="noindex, nofollow">
@@ -15,49 +15,156 @@
 
     @vite(['resources/css/app.css', 'resources/js/online-learning/room/app.js'])
 </head>
-<body data-skeleton-theme="dark" class="bg-[#06080d] text-slate-100 font-sans antialiased">
+<body data-skeleton-theme="dark" class="bg-cr-base text-white font-sans antialiased overflow-hidden">
 
-    <a href="#room-panel"
-       class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:rounded-xl focus:bg-indigo-600 focus:text-white focus:text-xs focus:font-bold">
-        Skip to class content
+    <a href="#room-stage"
+       class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-indigo-600 focus:text-white focus:text-xs focus:font-bold">
+        Skip to classroom
     </a>
 
     {{--
-        The room is one screen with three regions: a header carrying identity and
-        live state, a stage that owns the join action, and a panel area whose
-        contents are fetched only when opened. JS fills each region; Blade's job
-        is the shell and the bootstrap payload.
-    --}}
-    <div id="class-room" class="min-h-screen flex flex-col bg-[#06080d]">
+        Live Classroom Shell
+        ====================
+        Layout: Header → Main Workspace (Stage + Sidebar) → Bottom Control Bar
 
-        <header id="room-header" class="flex-shrink-0 border-b border-white/[0.06] bg-[#0a0e17]/80 backdrop-blur-xl">
-            {{-- Skeleton until bootstrap resolves --}}
-            <div class="max-w-[1400px] mx-auto px-4 sm:px-6 py-3.5" aria-hidden="true">
-                <div class="flex items-center gap-4">
-                    <div class="skeleton w-9 h-9 rounded-xl"></div>
-                    <div class="space-y-1.5">
-                        <div class="skeleton skeleton-text" style="width:96px"></div>
-                        <div class="skeleton skeleton-title" style="width:220px"></div>
+        The classroom is a single-screen application. The instructor must never
+        need to leave this screen to conduct the entire session.
+    --}}
+    <div id="class-room" class="cr-shell">
+
+        {{-- ─── Top Header ─────────────────────────────────────── --}}
+        <header id="room-header" class="cr-header" role="banner">
+            <div class="cr-header-inner">
+                {{-- Left: Back + Identity --}}
+                <div class="cr-header-left">
+                    <a href="#" data-room-exit
+                       class="cr-header-back" aria-label="Leave classroom">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+                    </a>
+
+                    <div class="cr-header-identity">
+                        <div class="cr-header-tags">
+                            <span id="header-state-badge"></span>
+                            <span id="header-context" class="cr-header-context"></span>
+                        </div>
+                        <h1 id="header-title" class="cr-header-title"></h1>
                     </div>
+                </div>
+
+                {{-- Center: Live info --}}
+                <div class="cr-header-center">
+                    <span id="header-live-badge" class="cr-live-badge" style="display:none">
+                        <span class="cr-live-dot"></span>
+                        LIVE
+                    </span>
+                    <span id="header-timer" class="cr-header-timer">00:00:00</span>
+                    <span class="cr-header-sep"></span>
+                    <span id="header-participants" class="cr-header-meta">
+                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">groups</span>
+                        <span id="header-online-count">0</span>
+                    </span>
+                </div>
+
+                {{-- Right: Connection + Actions --}}
+                <div class="cr-header-right">
+                    <span id="header-connection" class="cr-connection-badge" data-quality="excellent">
+                        <span class="cr-connection-bars">
+                            <span class="bar bar-1"></span>
+                            <span class="bar bar-2"></span>
+                            <span class="bar bar-3"></span>
+                            <span class="bar bar-4"></span>
+                        </span>
+                        <span id="header-connection-label">Excellent</span>
+                    </span>
+
+                    <button id="header-settings-btn" class="cr-header-action" data-tooltip="Settings" aria-label="Settings">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">settings</span>
+                    </button>
+
+                    <button id="header-more-btn" class="cr-header-action" data-tooltip="More" aria-label="More options">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">more_vert</span>
+                    </button>
+
+                    <button id="header-end-btn" class="cr-header-end-btn" style="display:none" aria-label="End class">
+                        End Class
+                    </button>
                 </div>
             </div>
         </header>
 
-        <div class="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-5 space-y-4">
-            <section id="room-stage" aria-label="Class stage" class="stage-enter">
-                <div class="skeleton" style="height:280px;border-radius:20px" aria-hidden="true"></div>
-            </section>
+        {{-- ─── Main Workspace ─────────────────────────────────── --}}
+        <div class="cr-workspace">
 
-            <nav id="room-tabs" class="flex gap-1.5 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1" aria-label="Room sections"></nav>
-
-            <main id="room-panel" tabindex="-1" aria-live="polite" class="min-h-[18rem] panel-enter">
-                <div class="skeleton" style="height:256px;border-radius:20px" aria-hidden="true"></div>
+            {{-- Video / Content Stage --}}
+            <main id="room-stage" class="cr-stage" aria-label="Classroom stage" tabindex="-1">
+                {{-- Skeleton until bootstrap resolves --}}
+                <div class="cr-stage-skeleton" aria-hidden="true">
+                    <div class="skeleton" style="width:100%;height:100%;border-radius:16px"></div>
+                </div>
             </main>
+
+            {{-- Contextual Sidebar --}}
+            <aside id="room-sidebar" class="cr-sidebar" role="complementary" aria-label="Classroom panels">
+                {{-- Sidebar Tab Bar --}}
+                <nav id="sidebar-tabs" class="cr-sidebar-tabs" role="tablist" aria-label="Classroom sections">
+                    {{-- Tabs rendered by JS --}}
+                </nav>
+
+                {{-- Sidebar Panel Content --}}
+                <div id="sidebar-panel" class="cr-sidebar-panel" tabindex="-1" aria-live="polite">
+                    {{-- Panel content rendered by JS --}}
+                </div>
+            </aside>
+        </div>
+
+        {{-- ─── Bottom Control Bar ─────────────────────────────── --}}
+        <footer id="room-controls" class="cr-controls" role="toolbar" aria-label="Classroom controls">
+            <div class="cr-controls-inner">
+                {{-- Left section: Quick info --}}
+                <div class="cr-controls-left">
+                    <div id="ctrl-recording" class="cr-ctrl-recording" style="display:none" aria-label="Recording">
+                        <span class="cr-rec-dot"></span>
+                        <span class="cr-rec-label">REC</span>
+                        <span id="ctrl-rec-timer" class="cr-rec-timer">00:00:00</span>
+                    </div>
+                </div>
+
+                {{-- Center: Primary controls --}}
+                <div id="ctrl-buttons" class="cr-controls-center">
+                    {{-- Rendered by JS based on role --}}
+                </div>
+
+                {{-- Right: Sidebar toggles --}}
+                <div class="cr-controls-right">
+                    <button id="ctrl-toggle-sidebar" class="cr-ctrl-toggle" data-tooltip="Toggle panel" aria-label="Toggle sidebar panel">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">sidebar</span>
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    {{-- ─── Mobile Bottom Sheet ────────────────────────────────── --}}
+    <div id="mobile-sheet" class="cr-mobile-sheet" role="dialog" aria-modal="true" aria-label="Classroom panel" style="display:none">
+        <div class="cr-mobile-sheet-backdrop" data-mobile-close></div>
+        <div class="cr-mobile-sheet-content">
+            <div class="cr-mobile-sheet-handle" data-mobile-close></div>
+            <div id="mobile-sheet-header" class="cr-mobile-sheet-header">
+                <h2 id="mobile-sheet-title" class="cr-mobile-sheet-title"></h2>
+                <button data-mobile-close class="cr-mobile-sheet-close" aria-label="Close">
+                    <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+                </button>
+            </div>
+            <div id="mobile-sheet-body" class="cr-mobile-sheet-body"></div>
         </div>
     </div>
 
+    {{-- ─── Toast Container ────────────────────────────────────── --}}
     <div id="room-toasts" role="status" aria-live="polite"
-         class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-[calc(100vw-2.5rem)] sm:max-w-sm pointer-events-none"></div>
+         class="cr-toasts"></div>
+
+    {{-- ─── Modals Container ───────────────────────────────────── --}}
+    <div id="room-modals"></div>
 
     @php
         $user = auth()->user();
@@ -73,7 +180,7 @@
                 name: @json(config('online-learning.branding.institute_name')),
             },
             exitUrl: @json($user->is_admin
-                ? url('/admin/online-learning/classes')
+                ? url('/admin/live-classroom')
                 : (($user->trainer ?? null) ? url('/teacher/online-learning/classes') : url('/student/learning/classes'))),
         };
     </script>

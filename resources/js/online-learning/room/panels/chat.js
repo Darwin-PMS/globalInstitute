@@ -1,7 +1,10 @@
-import { skeletonChat, emptyState, errorState, escapeHtml, formatTime, toast } from '../lib/ui.js';
+import { escapeHtml, formatTime, toast } from '../lib/ui.js';
 
 /**
- * Chat + announcements panel.
+ * Chat Panel — Classroom-specific chat for the sidebar.
+ *
+ * Supports messages, announcements, pinned messages, moderation, and
+ * real-time updates via the channel's delta polling.
  */
 export default class ChatPanel {
     constructor(ctx) {
@@ -10,18 +13,17 @@ export default class ChatPanel {
         this.caps = ctx.capabilities;
         this.userId = ctx.userId;
         this.mount = ctx.mount;
+        this.shell = ctx.shell;
         this.seen = new Set();
         this.unsubscribe = null;
     }
 
     async render() {
-        this.mount.innerHTML = skeletonChat();
-
         let initial;
         try {
             initial = await this.api.messages();
         } catch (err) {
-            this.mount.innerHTML = errorState(err.message || 'Unable to load the chat.', 'chat-retry');
+            this.mount.innerHTML = this.renderError(err.message || 'Unable to load the chat.');
             this.mount.querySelector('#chat-retry')?.addEventListener('click', () => this.render());
             return;
         }
@@ -37,18 +39,13 @@ export default class ChatPanel {
         if (messages.length) {
             this.append(messages);
         } else {
-            this.log.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-12 text-center">
-                    <div class="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mb-3">
-                        <span class="material-symbols-outlined text-xl text-slate-500">chat_bubble</span>
-                    </div>
-                    <p class="text-xs text-slate-500 font-medium">No messages yet.</p>
-                    <p class="text-[11px] text-slate-600 mt-0.5">Say hello to the class.</p>
-                </div>
-            `;
+            this.log.innerHTML = this.renderEmpty();
         }
 
-        this.unsubscribe = this.channel.on('messages', ({ messages: incoming }) => this.append(incoming));
+        this.unsubscribe = this.channel.on('messages', ({ messages: incoming }) => {
+            this.append(incoming);
+            this.clearUnreadBadge();
+        });
         this.channel.start('messages');
     }
 
@@ -56,11 +53,11 @@ export default class ChatPanel {
         const canPost = this.caps.can_post_message || this.caps.can_post_announcement;
 
         this.mount.innerHTML = `
-            <div class="flex flex-col h-[32rem] bg-[#0a0e17] border border-white/[0.06] rounded-2xl overflow-hidden shadow-2xl">
+            <div class="cr-chat">
                 ${pinned.length ? `
-                    <div id="chat-pinned" class="flex-shrink-0 border-b border-white/[0.04] bg-amber-950/10 divide-y divide-white/[0.04]">
+                    <div id="chat-pinned" class="cr-panel" style="border-bottom:1px solid var(--cr-border-subtle);padding:var(--cr-space-3)">
                         ${pinned.map((m) => `
-                            <div class="px-4 py-3 flex items-start gap-2.5">
+                            <div class="flex items-start gap-2.5 mb-2 last:mb-0">
                                 <span class="material-symbols-outlined text-[14px] text-amber-400 mt-0.5" aria-hidden="true">push_pin</span>
                                 <div class="min-w-0">
                                     <p class="text-[11px] font-bold text-amber-300">${escapeHtml(m.author)}</p>
@@ -71,26 +68,22 @@ export default class ChatPanel {
                     </div>
                 ` : ''}
 
-                <div id="chat-log" class="flex-1 overflow-y-auto p-4 space-y-3" role="log" aria-label="Class chat"></div>
+                <div id="chat-log" class="cr-chat-log" role="log" aria-label="Class chat"></div>
 
                 ${canPost ? `
-                    <form id="chat-form" class="flex-shrink-0 border-t border-white/[0.04] p-3 flex items-end gap-2">
+                    <form id="chat-form" class="cr-chat-composer">
                         <label for="chat-input" class="sr-only">Message</label>
-                        <textarea id="chat-input" rows="1" maxlength="2000"
-                            placeholder="${this.caps.can_post_message ? 'Message the class…' : 'Post an announcement…'}"
-                            class="flex-1 resize-none bg-white/[0.03] border border-white/[0.06] text-slate-200 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-indigo-500/50 transition-colors max-h-32 placeholder:text-slate-600"></textarea>
+                        <textarea id="chat-input" rows="1" maxlength="2000" class="cr-chat-input"
+                            placeholder="${this.caps.can_post_message ? 'Message the class…' : 'Post an announcement…'}"></textarea>
 
                         ${this.caps.can_post_announcement ? `
-                            <label class="flex items-center gap-1.5 text-[11px] text-slate-500 whitespace-nowrap cursor-pointer pb-2.5 hover:text-slate-300 transition-colors">
+                            <label class="flex items-center gap-1.5 text-[11px] text-slate-500 whitespace-nowrap cursor-pointer hover:text-slate-300 transition-colors pb-1">
                                 <input type="checkbox" id="chat-announce" class="w-3.5 h-3.5 rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500/30 focus:ring-offset-0">
                                 Announce
                             </label>
                         ` : ''}
 
-                        <button type="submit" id="chat-send"
-                            class="flex-shrink-0 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-40 disabled:shadow-none">
-                            Send
-                        </button>
+                        <button type="submit" id="chat-send" class="cr-chat-send">Send</button>
                     </form>
                 ` : `
                     <div class="flex-shrink-0 border-t border-white/[0.04] px-4 py-3 text-[11px] text-slate-600 text-center">
@@ -165,12 +158,16 @@ export default class ChatPanel {
     }
 
     bubble(m) {
+        if (m.type === 'system') {
+            return `<div class="cr-chat-system">${escapeHtml(m.body)}</div>`;
+        }
+
         if (m.type === 'announcement') {
             return `
-                <div class="p-3 rounded-xl bg-amber-950/20 border border-amber-500/20" data-message-id="${m.id}">
-                    <div class="flex items-center gap-1.5 mb-1">
-                        <span class="material-symbols-outlined text-[13px] text-amber-400" aria-hidden="true">campaign</span>
-                        <span class="text-[11px] font-bold text-amber-300">${escapeHtml(m.author)}</span>
+                <div class="cr-chat-announcement" data-message-id="${m.id}">
+                    <div class="cr-chat-ann-header">
+                        <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
+                        <span class="cr-ann-author">${escapeHtml(m.author)}</span>
                         <span class="text-[10px] text-slate-600">${formatTime(m.at)}</span>
                         ${this.moderationControls(m)}
                     </div>
@@ -182,17 +179,13 @@ export default class ChatPanel {
         const mine = m.user_id === this.userId;
 
         return `
-            <div class="flex ${mine ? 'justify-end' : 'justify-start'}" data-message-id="${m.id}">
-                <div class="max-w-[80%] group">
-                    <div class="flex items-center gap-1.5 mb-1 ${mine ? 'justify-end' : ''}">
-                        <span class="text-[11px] font-semibold text-slate-400">${mine ? 'You' : escapeHtml(m.author)}</span>
-                        <span class="text-[10px] text-slate-600">${formatTime(m.at)}</span>
-                        ${this.moderationControls(m)}
-                    </div>
-                    <div class="px-3.5 py-2 rounded-2xl text-xs leading-relaxed whitespace-pre-line ${mine
-                        ? 'bg-indigo-600 text-white rounded-br-lg'
-                        : 'bg-white/[0.04] text-slate-100 rounded-bl-lg border border-white/[0.06]'}">${escapeHtml(m.body)}</div>
+            <div class="cr-chat-msg ${mine ? 'mine' : ''}" data-message-id="${m.id}">
+                <div class="cr-chat-author">
+                    <span class="cr-chat-sender">${mine ? 'You' : escapeHtml(m.author)}</span>
+                    <span class="cr-chat-time">${formatTime(m.at)}</span>
+                    ${this.moderationControls(m)}
                 </div>
+                <div class="cr-chat-bubble">${escapeHtml(m.body)}</div>
             </div>
         `;
     }
@@ -240,6 +233,38 @@ export default class ChatPanel {
                 }
             });
         });
+    }
+
+    clearUnreadBadge() {
+        const badge = document.getElementById('chat-unread-badge');
+        if (badge) {
+            badge.textContent = '0';
+            badge.style.display = 'none';
+        }
+    }
+
+    renderEmpty() {
+        return `
+            <div class="cr-empty">
+                <div class="cr-empty-icon">
+                    <span class="material-symbols-outlined">chat_bubble</span>
+                </div>
+                <p class="cr-empty-title">No messages yet</p>
+                <p class="cr-empty-desc">Start the conversation.</p>
+            </div>
+        `;
+    }
+
+    renderError(message) {
+        return `
+            <div class="cr-error">
+                <div class="cr-error-icon">
+                    <span class="material-symbols-outlined text-[22px] text-red-400">error</span>
+                </div>
+                <p class="text-xs text-red-200 mt-2 mb-4">${escapeHtml(message)}</p>
+                <button type="button" id="chat-retry" class="cr-modal-btn secondary">Try again</button>
+            </div>
+        `;
     }
 
     destroy() {
