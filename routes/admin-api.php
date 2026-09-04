@@ -29,6 +29,21 @@ Route::prefix('api/admin')->name('api.admin.')->group(function () {
         Route::post('logout', [AuthApiController::class, 'logout'])->name('logout');
         Route::get('me', [AuthApiController::class, 'me'])->name('me');
 
+        // Sidebar (dynamic menu)
+        Route::get('sidebar', function () {
+            $user = auth()->user();
+            $sidebar = \App\Helpers\SidebarHelper::forUser($user);
+            $permissions = $user->getEffectivePermissions();
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'menus' => $sidebar,
+                    'permissions' => $permissions,
+                    'is_super_admin' => $user->hasRole('super-admin'),
+                ],
+            ]);
+        })->name('sidebar');
+
         // Dashboard
         Route::get('dashboard', [DashboardApiController::class, 'index'])->name('dashboard');
 

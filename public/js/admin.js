@@ -339,64 +339,19 @@ function pageHeader(title, description) {
  * `spa: true`  — handled in-page by this SPA (a config exists in `pages`).
  * `spa: false` — no JSON API yet, so the link goes to the working Blade screen
  *                with a normal page load. Nothing in the sidebar is a dead end.
+ *
+ * NAV_SECTIONS is populated dynamically from the /api/admin/sidebar endpoint.
+ * The hardcoded fallback below is used only if the API call fails.
  */
-var NAV_SECTIONS = [
-    {
-        title: 'Main', items: [
-            { route: 'dashboard', label: 'Dashboard', icon: 'dashboard', spa: true }
-        ]
-    },
-    {
-        title: 'Content', items: [
-            { route: 'courses', label: 'Courses', icon: 'school', spa: true },
-            { route: 'categories', label: 'Categories', icon: 'category', spa: true },
-            { route: 'gallery', label: 'Gallery', icon: 'photo_library', spa: true },
-            { route: 'testimonials', label: 'Testimonials', icon: 'reviews', spa: false, url: '/admin/testimonials' },
-            { route: 'faqs', label: 'FAQs', icon: 'help', spa: false, url: '/admin/faqs' },
-            { route: 'pages', label: 'Pages', icon: 'description', spa: false, url: '/admin/pages' }
-        ]
-    },
-    {
-        title: 'CRM', items: [
-            { route: 'enquiries', label: 'Enquiries', icon: 'contact_page', spa: true },
-            { route: 'admissions', label: 'Admissions', icon: 'how_to_reg', spa: false, url: '/admin/admissions' }
-        ]
-    },
-    {
-        title: 'Academic', items: [
-            { route: 'teachers', label: 'Teachers', icon: 'groups', spa: true },
-            { route: 'batches', label: 'Batches', icon: 'calendar_month', spa: true },
-            { route: 'rooms', label: 'Rooms', icon: 'meeting_room', spa: false, url: '/admin/rooms' },
-            { route: 'modules', label: 'Modules', icon: 'view_module', spa: false, url: '/admin/course-modules' },
-            { route: 'fees', label: 'Fee Structure', icon: 'account_balance_wallet', spa: false, url: '/admin/fee-structures' }
-        ]
-    },
-    {
-        title: 'Students', items: [
-            { route: 'students', label: 'Students', icon: 'person', spa: true },
-            { route: 'enrollments', label: 'Enrollments', icon: 'badge', spa: false, url: '/admin/enrollments' },
-            { route: 'payments', label: 'Payments', icon: 'payments', spa: false, url: '/admin/payments' }
-        ]
-    },
-    {
-        title: 'Online Learning', items: [
-            { route: 'live-classroom', label: 'Live Classroom', icon: 'live_tv', spa: true },
-            { route: 'online-classes', label: 'Schedule Classes', icon: 'videocam', spa: true },
-            { route: 'lessons', label: 'Lessons', icon: 'menu_book', spa: true },
-            { route: 'materials', label: 'Materials', icon: 'folder_open', spa: true },
-            { route: 'assignments', label: 'Assignments', icon: 'assignment', spa: true },
-            { route: 'quizzes', label: 'Quizzes', icon: 'quiz', spa: true },
-            { route: 'recordings', label: 'Recordings', icon: 'video_library', spa: true },
-            { route: 'learning', label: 'Learning Portal', icon: 'cast_for_education', spa: false, url: '/admin/online-learning' }
-        ]
-    },
-    {
-        title: 'System', items: [
-            { route: 'reports', label: 'Reports', icon: 'analytics', spa: false, url: '/admin/reports' },
-            { route: 'settings', label: 'Settings', icon: 'settings', spa: false, url: '/admin/settings' }
-        ]
-    }
-];
+var NAV_SECTIONS = null;
+var USER_PERMISSIONS = [];
+var USER_IS_SUPER_ADMIN = false;
+
+/** Check if user has a specific permission */
+function userHasPermission(slug) {
+    if (USER_IS_SUPER_ADMIN) return true;
+    return USER_PERMISSIONS.indexOf(slug) !== -1;
+}
 
 /* ----------------------------------------------------------
    5. Router
@@ -496,13 +451,22 @@ var Router = {
    ---------------------------------------------------------- */
 var AdminApp = {
     init: function () {
-        AdminApp.renderSidebar();
-
-        if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#') {
-            window.location.replace('#/dashboard');
+        // Fetch sidebar data from API first, then render and resolve route
+        var nav = document.getElementById('sidebar-nav');
+        if (nav) {
+            AdminApp.fetchSidebar(nav).then(function () {
+                if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#') {
+                    window.location.replace('#/dashboard');
+                }
+                Router.init();
+            });
+        } else {
+            AdminApp.renderSidebar();
+            if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#') {
+                window.location.replace('#/dashboard');
+            }
+            Router.init();
         }
-
-        Router.init();
     },
 
     /** Same markup as the sidebar in layouts/admin.blade.php. */
@@ -510,22 +474,48 @@ var AdminApp = {
         var nav = document.getElementById('sidebar-nav');
         if (!nav) return;
 
-        var html = '';
-        NAV_SECTIONS.forEach(function (section) {
-            html += '<div class="nav-section-label">' + escapeHtml(section.title) + '</div>';
+        // If sidebar data is loaded from API, use it
+        if (NAV_SECTIONS) {
+            var html = '';
+            NAV_SECTIONS.forEach(function (section) {
+                html += '<div class="nav-section">';
+                html += '<div class="nav-section-label">' + escapeHtml(section.name) + '</div>';
 
-            section.items.forEach(function (item) {
-                var href = item.spa ? ('#/' + item.route) : (Api.baseUrl + item.url);
-                var external = item.spa ? '' : ' data-external="true"';
+                if (section.children) {
+                    section.children.forEach(function (item) {
+                        var href;
+                        var external = '';
+                        if (item.is_spa && !item.url) {
+                            href = '#/' + item.slug;
+                        } else if (item.url && item.url.indexOf('http') === 0) {
+                            href = item.url;
+                            external = ' target="_blank" rel="noopener"';
+                        } else if (item.url) {
+                            href = Api.baseUrl + item.url;
+                            external = ' data-external="true"';
+                        } else if (item.route_name) {
+                            href = Api.baseUrl + '/' + item.route_name.replace(/\./g, '/');
+                            external = ' data-external="true"';
+                        } else {
+                            href = '#/' + item.slug;
+                        }
 
-                html += '<a href="' + href + '" class="nav-link" data-route="' + item.route + '"' + external + '>' +
-                    '<span class="material-symbols-outlined">' + item.icon + '</span>' +
-                    '<span class="nav-text">' + escapeHtml(item.label) + '</span>' +
-                    '</a>';
+                        html += '<a href="' + href + '" class="nav-link" data-route="' + item.slug + '"' + external + '>' +
+                            (item.icon ? '<span class="material-symbols-outlined">' + item.icon + '</span>' : '') +
+                            '<span class="nav-text">' + escapeHtml(item.name) + '</span>' +
+                            '</a>';
+                    });
+                }
+
+                html += '</div>';
             });
-        });
 
-        nav.innerHTML = html;
+            nav.innerHTML = html;
+        } else {
+            // Fallback: fetch sidebar from API
+            AdminApp.fetchSidebar(nav);
+            return;
+        }
 
         // On mobile the sidebar overlays the content, so a chosen link closes it.
         Array.prototype.forEach.call(nav.querySelectorAll('.nav-link'), function (link) {
@@ -534,6 +524,36 @@ var AdminApp = {
                     closeSidebar();
                 }
             });
+        });
+    },
+
+    /** Fetch sidebar data from the API */
+    fetchSidebar: function (nav) {
+        if (!nav) nav = document.getElementById('sidebar-nav');
+        if (!nav) return Promise.resolve();
+
+        return Api.get('sidebar').then(function (res) {
+            if (res.success && res.data) {
+                NAV_SECTIONS = res.data.menus || [];
+                USER_PERMISSIONS = res.data.permissions || [];
+                USER_IS_SUPER_ADMIN = res.data.is_super_admin || false;
+
+                // Store permissions for use by page renderers
+                window.USER_PERMISSIONS = USER_PERMISSIONS;
+                window.USER_IS_SUPER_ADMIN = USER_IS_SUPER_ADMIN;
+
+                AdminApp.renderSidebar();
+
+                // Re-apply active state
+                var target = Router.parse(window.location.hash);
+                Router.updateSidebar(target.page);
+            }
+        }).catch(function () {
+            // On error, show minimal sidebar
+            nav.innerHTML = '<div class="nav-section"><div class="nav-section-label">Menu</div>' +
+                '<a href="#/dashboard" class="nav-link" data-route="dashboard">' +
+                '<span class="material-symbols-outlined">dashboard</span>' +
+                '<span class="nav-text">Dashboard</span></a></div>';
         });
     },
 

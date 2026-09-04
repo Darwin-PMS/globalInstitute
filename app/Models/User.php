@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -103,5 +104,213 @@ class User extends Authenticatable
         }
 
         return $this->trainer ? 'teacher' : 'student';
+    }
+
+    // ── RBAC Relationships ───────────────────────────────────
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'user_roles', 'user_id', 'role_id')
+            ->withTimestamps();
+    }
+
+    public function directPermissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'user_permissions', 'user_id', 'permission_id')
+            ->withPivot('type', 'note')
+            ->withTimestamps();
+    }
+
+    // ── RBAC Helpers ─────────────────────────────────────────
+
+    /**
+     * Get all permission slugs from the user's roles (merged, no duplicates).
+     */
+    public function getRolePermissions(): \Illuminate\Support\Collection
+    {
+        return $this->roles()
+            ->active()
+            ->with('permissions')
+            ->get()
+            ->pluck('permissions')
+            ->flatten()
+            ->pluck('slug')
+            ->unique();
+    }
+
+    /**
+     * Get the user's effective permissions after resolving:
+     * 1. Super Admin bypass
+     * 2. Role permissions
+     * 3. User direct DENY overrides
+     * 4. User direct ALLOW overrides
+     *
+     * Returns array of permission slugs.
+     */
+    public function getEffectivePermissions(): array
+    {
+        // Super Admin bypass — has everything
+        if ($this->hasRole('super-admin')) {
+            return Permission::where('is_active', true)
+                ->pluck('slug')
+                ->toArray();
+        }
+
+        // Start with role-based permissions
+        $allowed = $this->getRolePermissions()->flip();
+
+        // Apply direct user DENY overrides
+        $this->directPermissions()
+            ->where('pivot.type', 'deny')
+            ->each(function ($perm) use (&$allowed) {
+                $allowed->forget($perm->slug);
+            });
+
+        // Apply direct user ALLOW overrides
+        $this->directPermissions()
+            ->where('pivot.type', 'allow')
+            ->each(function ($perm) use (&$allowed) {
+                $allowed->put($perm->slug, true);
+            });
+
+        return $allowed->keys()->toArray();
+    }
+
+    /**
+     * Check if the user has a specific permission.
+     * Super Admin always returns true.
+     */
+    public function hasPermission(string $permissionSlug): bool
+    {
+        // Super Admin bypass
+        if ($this->hasRole('super-admin')) {
+            return true;
+        }
+
+        // Check user-level DENY override first
+        $directDeny = $this->directPermissions()
+            ->where('slug', $permissionSlug)
+            ->where('pivot.type', 'deny')
+            ->exists();
+
+        if ($directDeny) {
+            return false;
+        }
+
+        // Check user-level ALLOW override
+        $directAllow = $this->directPermissions()
+            ->where('slug', $permissionSlug)
+            ->where('pivot.type', 'allow')
+            ->exists();
+
+        if ($directAllow) {
+            return true;
+        }
+
+        // Check role permissions
+        return $this->roles()
+            ->active()
+            ->whereHas('permissions', function ($q) use ($permissionSlug) {
+                $q->where('slug', $permissionSlug)->where('is_active', true);
+            })
+            ->exists();
+    }
+
+    /**
+     * Check if the user has ALL of the given permissions.
+     */
+    public function hasAllPermissions(array $permissionSlugs): bool
+    {
+        foreach ($permissionSlugs as $slug) {
+            if (!$this->hasPermission($slug)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Check if the user has ANY of the given permissions.
+     */
+    public function hasAnyPermission(array $permissionSlugs): bool
+    {
+        foreach ($permissionSlugs as $slug) {
+            if ($this->hasPermission($slug)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if the user has a specific role.
+     */
+    public function hasRole(string $roleSlug): bool
+    {
+        return $this->roles()
+            ->where('slug', $roleSlug)
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    /**
+     * Check if the user has any of the given roles.
+     */
+    public function hasAnyRole(array $roleSlugs): bool
+    {
+        return $this->roles()
+            ->whereIn('slug', $roleSlugs)
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    /**
+     * Assign a role to the user (idempotent).
+     */
+    public function assignRole(string $roleSlug): self
+    {
+        $role = Role::where('slug', $roleSlug)->firstOrFail();
+        if (!$this->roles()->where('role_id', $role->id)->exists()) {
+            $this->roles()->attach($role);
+        }
+        return $this;
+    }
+
+    /**
+     * Remove a role from the user.
+     */
+    public function removeRole(string $roleSlug): self
+    {
+        $role = Role::where('slug', $roleSlug)->first();
+        if ($role) {
+            $this->roles()->detach($role);
+        }
+        return $this;
+    }
+
+    /**
+     * Laravel's Gate integration — makes $user->can('students.view') work.
+     */
+    public function can($ability, $arguments = []): bool
+    {
+        // Super Admin bypass
+        if ($this->hasRole('super-admin')) {
+            return true;
+        }
+
+        // If it looks like a permission slug, check via RBAC
+        if (str_contains($ability, '.')) {
+            return $this->hasPermission($ability);
+        }
+
+        return parent::can($ability, $arguments);
+    }
+
+    /**
+     * Inverse of can().
+     */
+    public function cant($ability, $arguments = []): bool
+    {
+        return !$this->can($ability, $arguments);
     }
 }

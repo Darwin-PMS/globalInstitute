@@ -11,8 +11,11 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        // AdminUserSeeder must run before RbacSeeder so the admin user
+        // exists when RbacSeeder assigns the super-admin role.
         $this->call([
             AdminUserSeeder::class,
+            RbacSeeder::class,
             CourseCategorySeeder::class,
             CourseSeeder::class,
             SiteSettingSeeder::class,
