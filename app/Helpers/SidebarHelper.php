@@ -71,27 +71,29 @@ class SidebarHelper
         $grouped = $menus->groupBy(fn ($m) => $m->parent_id ?? 'root');
 
         $buildChildren = function ($parentId) use (&$grouped, &$buildChildren) {
-            $children = $grouped->get($parentId, collect());
-            return $children->map(function ($menu) use (&$buildChildren) {
-                $item = [
-                    'id' => $menu->id,
-                    'name' => $menu->name,
-                    'slug' => $menu->slug,
-                    'icon' => $menu->icon,
-                    'route_name' => $menu->route_name,
-                    'url' => $menu->url,
-                    'permission_key' => $menu->permission_key,
-                    'is_spa' => $menu->is_spa,
-                    'target' => $menu->target,
-                ];
+            return $grouped->get($parentId, collect())
+                ->map(function ($menu) use (&$buildChildren) {
+                    $item = [
+                        'id' => $menu->id,
+                        'name' => $menu->name,
+                        'slug' => $menu->slug,
+                        'icon' => $menu->icon,
+                        'route_name' => $menu->route_name,
+                        'url' => $menu->url,
+                        'permission_key' => $menu->permission_key,
+                        'is_spa' => $menu->is_spa,
+                        'target' => $menu->target,
+                    ];
 
-                $children = $buildChildren($menu->id);
-                if ($children->isNotEmpty()) {
-                    $item['children'] = $children->values()->toArray();
-                }
+                    $children = $buildChildren($menu->id);
+                    if (count($children) > 0) {
+                        $item['children'] = $children;
+                    }
 
-                return $item;
-            })->values()->toArray();
+                    return $item;
+                })
+                ->values()
+                ->toArray();
         };
 
         return $buildChildren('root');

@@ -19,9 +19,9 @@ class SiteSettingSeeder extends Seeder
 
             // Contact
             ['setting_key' => 'contact_email', 'setting_value' => 'info@globalinstitute.edu.in', 'setting_type' => 'text', 'group_name' => 'contact'],
-            ['setting_key' => 'contact_phone', 'setting_value' => '+91 98765 43210', 'setting_type' => 'text', 'group_name' => 'contact'],
-            ['setting_key' => 'contact_phone_2', 'setting_value' => '+91 98765 43211', 'setting_type' => 'text', 'group_name' => 'contact'],
-            ['setting_key' => 'contact_address', 'setting_value' => '123 Industrial Area, Near Main Road, City - 400001, State, India', 'setting_type' => 'textarea', 'group_name' => 'contact'],
+            ['setting_key' => 'contact_phone', 'setting_value' => '+91 87899 61355', 'setting_type' => 'text', 'group_name' => 'contact'],
+            ['setting_key' => 'contact_phone_2', 'setting_value' => '', 'setting_type' => 'text', 'group_name' => 'contact'],
+            ['setting_key' => 'contact_address', 'setting_value' => 'Gamharia Chowk, Jamshedpur, Jharkhand', 'setting_type' => 'textarea', 'group_name' => 'contact'],
             ['setting_key' => 'contact_map_embed', 'setting_value' => '', 'setting_type' => 'textarea', 'group_name' => 'contact'],
 
             // Social Media
@@ -29,7 +29,7 @@ class SiteSettingSeeder extends Seeder
             ['setting_key' => 'instagram_url', 'setting_value' => 'https://instagram.com/globalinstitute', 'setting_type' => 'text', 'group_name' => 'social'],
             ['setting_key' => 'youtube_url', 'setting_value' => 'https://youtube.com/@globalinstitute', 'setting_type' => 'text', 'group_name' => 'social'],
             ['setting_key' => 'linkedin_url', 'setting_value' => 'https://linkedin.com/company/globalinstitute', 'setting_type' => 'text', 'group_name' => 'social'],
-            ['setting_key' => 'whatsapp_number', 'setting_value' => '919876543210', 'setting_type' => 'text', 'group_name' => 'social'],
+            ['setting_key' => 'whatsapp_number', 'setting_value' => '918789961355', 'setting_type' => 'text', 'group_name' => 'social'],
 
             // Footer
             ['setting_key' => 'footer_text', 'setting_value' => '© 2026 Global Institute. All rights reserved.', 'setting_type' => 'text', 'group_name' => 'footer'],

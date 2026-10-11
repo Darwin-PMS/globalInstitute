@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\AnnouncementApiController;
 use App\Http\Controllers\Api\CourseApiController;
+use App\Http\Controllers\Api\FacilityApiController;
 use App\Http\Controllers\Api\FaqApiController;
 use App\Http\Controllers\Api\GalleryApiController;
 use App\Http\Controllers\Api\SettingApiController;
+use App\Http\Controllers\Api\TeacherPublicApiController;
 use App\Http\Controllers\Api\TestimonialApiController;
 use App\Http\Controllers\Frontend\SpaController;
 use App\Http\Controllers\Frontend\StudentDashboardController;
@@ -20,6 +23,9 @@ Route::get('/api/courses/{slug}', [CourseApiController::class, 'show'])->name('a
 Route::get('/api/testimonials', [TestimonialApiController::class, 'index'])->name('api.testimonials');
 Route::get('/api/faqs', [FaqApiController::class, 'index'])->name('api.faqs');
 Route::get('/api/gallery', [GalleryApiController::class, 'index'])->name('api.gallery');
+Route::get('/api/faculty', [TeacherPublicApiController::class, 'index'])->name('api.faculty');
+Route::get('/api/facilities', [FacilityApiController::class, 'index'])->name('api.facilities');
+Route::get('/api/announcements', [AnnouncementApiController::class, 'index'])->name('api.announcements');
 Route::get('/api/settings', [SettingApiController::class, 'index'])->name('api.settings');
 Route::post('/api/enquiries', [SpaController::class, 'submitEnquiry'])->name('api.enquiries');
 Route::get('/api/csrf-token', function () {
