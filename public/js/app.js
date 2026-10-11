@@ -12,8 +12,8 @@
     const API_BASE = (() => {
         if (window.location.port === '8000') return '';
         const b = document.querySelector('base');
-        const root = b ? b.href.replace(/\/$/, '') : window.location.origin;
-        return root + '/global_institute_laravel/public';
+        if (b && b.href) return b.href.replace(/\/$/, '');
+        return window.location.origin;
     })();
     const DataStore = {
         courses: null, testimonials: null, faqs: null, gallery: null, settings: null,
