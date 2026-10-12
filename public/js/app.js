@@ -1,1504 +1,1167 @@
-/* ============================================
-   GLOBAL INSTITUTE & CAD CAM - SPA Application
-   Vanilla JS Single Page Application
-   ============================================ */
+/* ============================================================
+   GLOBAL INSTITUTE & CAD CAM — Public SPA
+   Vanilla JS single page application.
+   Data comes from the public JSON API; nothing is hard-coded
+   that the institute cannot back up with real records.
+   ============================================================ */
 
 (function () {
     'use strict';
 
-    /* ------------------------------------------
-       Data Store - API Cache
-       ------------------------------------------ */
+    /* --------------------------------------------------------
+       API base (public/ is the doc root when served by Laravel)
+       -------------------------------------------------------- */
     const API_BASE = (() => {
+        const base = document.querySelector('base');
+        if (base && base.href) return base.href.replace(/\/$/, '');
+        const src = document.currentScript && document.currentScript.src;
+        if (src) {
+            const path = new URL(src).pathname;
+            const root = path.replace(/\/js\/[^/]*$/, '');
+            if (root) return root;
+        }
         if (window.location.port === '8000') return '';
-        const b = document.querySelector('base');
-        if (b && b.href) return b.href.replace(/\/$/, '');
         return window.location.origin;
     })();
-    const DataStore = {
-        courses: null, testimonials: null, faqs: null, gallery: null, settings: null,
-        async fetchCourses() {
-            if (this.courses) return this.courses;
-            try { const r = await fetch(`${API_BASE}/api/courses`); const j = await r.json(); this.courses = j.data || []; } catch(e) { this.courses = []; }
-            return this.courses;
-        },
-        async fetchTestimonials() {
-            if (this.testimonials) return this.testimonials;
-            try { const r = await fetch(`${API_BASE}/api/testimonials`); const j = await r.json(); this.testimonials = j.data || []; } catch(e) { this.testimonials = []; }
-            return this.testimonials;
-        },
-        async fetchFaqs() {
-            if (this.faqs) return this.faqs;
-            try { const r = await fetch(`${API_BASE}/api/faqs`); const j = await r.json(); this.faqs = j.data || []; } catch(e) { this.faqs = []; }
-            return this.faqs;
-        },
-        async fetchGallery() {
-            if (this.gallery) return this.gallery;
-            try { const r = await fetch(`${API_BASE}/api/gallery`); const j = await r.json(); this.gallery = j.data || []; } catch(e) { this.gallery = []; }
-            return this.gallery;
-        },
-        async fetchSettings() {
-            if (this.settings) return this.settings;
-            try { const r = await fetch(`${API_BASE}/api/settings`); const j = await r.json(); this.settings = j.data || {}; } catch(e) { this.settings = {}; }
-            return this.settings;
-        }
+
+    const IMG_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" fill="#eef1f6">' +
+        '<rect width="600" height="400"/></svg>'
+    );
+
+    const CATEGORY_META = {
+        'cad-cam':            { label: 'CAD/CAM',          icon: 'precision_manufacturing' },
+        'cnc-programming':    { label: 'CNC Programming',  icon: 'settings' },
+        'industrial-skills':  { label: 'Industrial Skills', icon: 'build' },
+        'computer-skills':    { label: 'Computer Skills',  icon: 'computer' },
     };
 
-    /* ------------------------------------------
-       SPA Router
-       ------------------------------------------ */
-    const Router = {
-        routes: {},
-        currentRoute: null,
-
-        init() {
-            window.addEventListener('hashchange', () => this.resolve());
-            window.addEventListener('load', () => this.resolve());
-            document.addEventListener('click', (e) => {
-                const link = e.target.closest('[data-link]');
-                if (link) {
-                    const href = link.getAttribute('href');
-                    if (href && href.startsWith('#')) {
-                        this.closeMobileNav();
-                    }
-                }
-            });
-        },
-
-        addRoute(path, handler) {
-            this.routes[path] = handler;
-            return this;
-        },
-
-        resolve() {
-            const hash = window.location.hash.slice(1) || '/';
-            const route = hash.split('?')[0];
-
-            if (this.routes[route]) {
-                this.currentRoute = route;
-                this.updateActiveLinks(route);
-                this.transitionTo(() => this.routes[route]());
-            } else if (route.startsWith('/courses/') && route !== '/courses') {
-                const slug = route.split('/courses/')[1];
-                this.currentRoute = route;
-                this.updateActiveLinks('/courses');
-                this.transitionTo(() => Pages.courseDetail({ slug }));
-            } else if (this.routes['/']) {
-                this.currentRoute = '/404';
-                this.updateActiveLinks('/');
-                this.transitionTo(() => Pages.notFound());
-            }
-
-            this.closeMobileNav();
-        },
-
-        transitionTo(renderFn) {
-            const app = document.getElementById('app');
-            app.classList.add('page-exit');
-            setTimeout(() => {
-                renderFn();
-                app.classList.remove('page-exit');
-                app.classList.add('page-enter');
-                setTimeout(() => app.classList.remove('page-enter'), 200);
-                if (window.LazyLoad) LazyLoad.init();
-            }, 150);
-        },
-
-        updateActiveLinks(route) {
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-                const page = link.dataset.page;
-                if (page) {
-                    if (route === '/' && page === 'home') link.classList.add('active');
-                    else if (route.startsWith('/' + page)) link.classList.add('active');
-                }
-            });
-
-            document.querySelectorAll('.mobile-nav-link').forEach(link => {
-                link.classList.remove('active');
-                if (link.getAttribute('href') === '#' + route) {
-                    link.classList.add('active');
-                }
-            });
-        },
-
-        scrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        },
-
-        closeMobileNav() {
-            document.getElementById('mobile-nav-overlay')?.classList.remove('active');
-            document.body.style.overflow = '';
-        }
+    const FACILITY_META = {
+        computer_lab: { label: 'Computer Lab',  icon: 'computer' },
+        cad_lab:      { label: 'CAD Lab',       icon: 'architecture' },
+        cnc_lab:      { label: 'CNC Lab',       icon: 'precision_manufacturing' },
+        workshop:     { label: 'Workshop',      icon: 'build' },
+        classroom:    { label: 'Classroom',     icon: 'meeting_room' },
+        other:        { label: 'Facility',      icon: 'apartment' },
     };
 
-    /* ------------------------------------------
-       Toast Notifications
-       ------------------------------------------ */
-    function showToast(message, type = 'success') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        const icon = type === 'success' ? 'check_circle' : 'error';
-        toast.innerHTML = `<span class="material-symbols-outlined">${icon}</span><span>${message}</span>`;
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 3500);
+    /* --------------------------------------------------------
+       Small helpers
+       -------------------------------------------------------- */
+    function esc(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    /* ------------------------------------------
-       Modal
-       ------------------------------------------ */
-    function openEnquiryModal() {
-        document.getElementById('enquiry-modal').classList.add('active');
+    function categoryMeta(slug) {
+        return CATEGORY_META[slug] || { label: 'Program', icon: 'school' };
+    }
+
+    function facilityMeta(type) {
+        return FACILITY_META[type] || FACILITY_META.other;
+    }
+
+    function formatFee(fees) {
+        if (fees == null || fees === '' || fees === '0.00' || Number(fees) === 0) return 'Contact us';
+        return '\u20B9' + Number(fees).toLocaleString('en-IN');
+    }
+
+    function initials(name) {
+        return String(name || '?').trim().charAt(0).toUpperCase();
+    }
+
+    function api(path, options) {
+        return fetch(API_BASE + path, Object.assign({ headers: { Accept: 'application/json' } }, options || {}))
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            });
+    }
+
+    /* --------------------------------------------------------
+       Data store (dedupes in-flight requests, memoises results)
+       -------------------------------------------------------- */
+    const Store = {
+        _cache: {},
+        _load(key, path, fallback) {
+            if (!(key in this._cache)) {
+                this._cache[key] = api(path)
+                    .then(json => json.data != null ? json.data : fallback)
+                    .catch(() => fallback);
+            }
+            return this._cache[key];
+        },
+        courses()      { return this._load('courses', '/api/courses', []); },
+        faculty()      { return this._load('faculty', '/api/faculty', []); },
+        facilities()   { return this._load('facilities', '/api/facilities', []); },
+        testimonials() { return this._load('testimonials', '/api/testimonials', []); },
+        faqs()         { return this._load('faqs', '/api/faqs', []); },
+        gallery()      { return this._load('gallery', '/api/gallery', []); },
+        announcements(){ return this._load('announcements', '/api/announcements', []); },
+        settings()     { return this._load('settings', '/api/settings', {}); },
+        course(slug)   { return this._load('course:' + slug, '/api/courses/' + encodeURIComponent(slug), null); }
+    };
+
+    /* --------------------------------------------------------
+       Toast
+       -------------------------------------------------------- */
+    function showToast(message, type) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const el = document.createElement('div');
+        el.className = 'toast toast-' + (type || 'success');
+        const icon = type === 'error' ? 'error' : 'check_circle';
+        el.innerHTML = '<span class="material-symbols-outlined">' + icon + '</span><span>' + esc(message) + '</span>';
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 3600);
+    }
+
+    /* --------------------------------------------------------
+       Enquiry modal
+       -------------------------------------------------------- */
+    function openEnquiryModal(courseSlug) {
+        const modal = document.getElementById('enquiry-modal');
+        if (!modal) return;
+        const select = document.getElementById('enquiry-course');
+        if (select && courseSlug) {
+            const match = Array.from(select.options).find(o => o.value === courseSlug);
+            if (match) select.value = courseSlug;
+        }
+        modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        const first = document.getElementById('enquiry-name');
+        if (first) setTimeout(() => first.focus(), 150);
     }
 
     function closeEnquiryModal() {
-        document.getElementById('enquiry-modal').classList.remove('active');
+        const modal = document.getElementById('enquiry-modal');
+        if (modal) modal.classList.remove('active');
         document.body.style.overflow = '';
     }
 
-    /* ------------------------------------------
-       FAQ Accordion
-       ------------------------------------------ */
-    function initFAQ() {
+    /* --------------------------------------------------------
+       CSRF + enquiry submission
+       -------------------------------------------------------- */
+    let csrfToken = null;
+    function getCsrf(force) {
+        if (csrfToken && !force) return Promise.resolve(csrfToken);
+        return api('/api/csrf-token')
+            .then(j => { csrfToken = j.token; return csrfToken; })
+            .catch(() => null);
+    }
+
+    function validationMessage(data) {
+        if (data && data.errors) {
+            const first = Object.values(data.errors)[0];
+            if (Array.isArray(first) && first.length) return first[0];
+        }
+        return (data && data.message) || 'Something went wrong. Please try again.';
+    }
+
+    function submitEnquiry(form, extra) {
+        return getCsrf().then(token => {
+            const fd = new FormData(form);
+            if (token) fd.set('_token', token);
+            Object.keys(extra || {}).forEach(k => { if (extra[k] != null && extra[k] !== '') fd.set(k, extra[k]); });
+            return fetch(API_BASE + '/api/enquiries', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+                body: fd
+            });
+        }).then(res => {
+            if (res.status === 419) { csrfToken = null; throw new Error('Your session expired. Please try again.'); }
+            return res.json().catch(() => ({})).then(data => {
+                if (!res.ok || !data.success) throw new Error(validationMessage(data));
+                return data;
+            });
+        });
+    }
+
+    function wireForm(formId, options) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+        options = options || {};
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const btn = form.querySelector('button[type="submit"], button:not([type])');
+            const original = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.dataset.busy = '1'; btn.innerHTML = 'Sending\u2026'; }
+            submitEnquiry(form, options.extra ? options.extra(form) : null)
+                .then(() => {
+                    form.reset();
+                    if (options.onSuccess) options.onSuccess();
+                    showToast(options.successMessage || 'Enquiry submitted. We will contact you shortly.');
+                })
+                .catch(err => showToast(err.message || 'Network error. Please try again.', 'error'))
+                .finally(() => {
+                    if (btn) { btn.disabled = false; btn.innerHTML = original; delete btn.dataset.busy; }
+                });
+        });
+    }
+
+    /* --------------------------------------------------------
+       Router
+       -------------------------------------------------------- */
+    const Routes = [
+        { pattern: /^\/$/,                     page: 'home' },
+        { pattern: /^\/courses$/,              page: 'courses' },
+        { pattern: /^\/courses\/([^/]+)$/,     page: 'courseDetail', params: ['slug'] },
+        { pattern: /^\/faculty$/,              page: 'faculty' },
+        { pattern: /^\/facilities$/,           page: 'facilities' },
+        { pattern: /^\/about$/,                page: 'about' },
+        { pattern: /^\/admissions$/,           page: 'admissions' },
+        { pattern: /^\/gallery$/,              page: 'gallery' },
+        { pattern: /^\/contact$/,              page: 'contact' },
+    ];
+
+    const ACTIVE_PAGES = {
+        home: 'home', courses: 'courses', courseDetail: 'courses',
+        faculty: 'faculty', facilities: 'facilities', about: 'about',
+        admissions: 'admissions', gallery: 'gallery', contact: 'contact'
+    };
+
+    const Router = {
+        current: null,
+        resolve() {
+            const hash = (window.location.hash.slice(1) || '/').split('?')[0];
+            let match = null;
+            for (const route of Routes) {
+                const m = hash.match(route.pattern);
+                if (m) { match = { page: route.page, args: m.slice(1).map(decodeURIComponent) }; break; }
+            }
+            if (!match) match = { page: 'notFound', args: [] };
+
+            this.current = match.page;
+            setActiveNav(ACTIVE_PAGES[match.page] || '');
+            const render = Pages[match.page] || Pages.notFound;
+            this.transition(() => render.apply(Pages, match.args));
+        },
+        transition(renderFn) {
+            const app = document.getElementById('app');
+            app.classList.add('page-exit');
+            window.setTimeout(() => {
+                renderFn();
+                app.classList.remove('page-exit');
+                app.classList.add('page-enter');
+                window.setTimeout(() => app.classList.remove('page-enter'), 260);
+                if (window.LazyLoad) window.LazyLoad.init(app);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 140);
+        }
+    };
+
+    function setActiveNav(page) {
+        document.querySelectorAll('[data-page]').forEach(el => {
+            el.classList.toggle('active', el.dataset.page === page);
+        });
+    }
+
+    /* --------------------------------------------------------
+       Reusable partials
+       -------------------------------------------------------- */
+    function courseMedia(course) {
+        if (course.image) {
+            return '<img class="lazy-img" src="' + IMG_PLACEHOLDER + '" data-src="' + esc(course.image) + '" alt="' + esc(course.title) + '" loading="lazy" decoding="async"/>';
+        }
+        const meta = categoryMeta(course.category_slug);
+        return '<div class="media-placeholder"><span class="material-symbols-outlined">' + meta.icon + '</span></div>';
+    }
+
+    function courseCard(course) {
+        const meta = categoryMeta(course.category_slug);
+        const skills = (course.skills || []).slice(0, 3);
+        const tags = skills.map(s => '<span class="course-tag">' + esc(s) + '</span>').join('')
+            || '<span class="course-tag">' + esc(meta.label) + '</span>';
+        return '' +
+        '<article class="course-card course-filter-card reveal" data-title="' + esc(course.title) + '" data-category="' + esc(course.category_slug || '') + '">' +
+            '<a class="course-card-image" href="#/courses/' + esc(course.slug) + '" data-link aria-label="' + esc(course.title) + '">' +
+                courseMedia(course) +
+                '<span class="course-card-badge">' + esc(meta.label) + '</span>' +
+                '<div class="course-card-image-overlay"></div>' +
+            '</a>' +
+            '<div class="course-card-body">' +
+                '<div class="course-card-cat"><span class="material-symbols-outlined">' + meta.icon + '</span>' + esc(meta.label) + '</div>' +
+                '<h3 class="course-card-title"><a href="#/courses/' + esc(course.slug) + '" data-link>' + esc(course.title) + '</a></h3>' +
+                '<p class="course-card-desc">' + esc(course.short_description || course.description || '') + '</p>' +
+                '<div class="course-card-tags">' + tags + '</div>' +
+                '<div class="course-card-meta">' +
+                    '<span class="course-meta-item"><span class="material-symbols-outlined">schedule</span>' + esc(course.duration || 'Flexible') + '</span>' +
+                    '<span class="course-meta-item"><span class="material-symbols-outlined">payments</span>' + formatFee(course.fees) + '</span>' +
+                '</div>' +
+                '<div class="course-card-actions">' +
+                    '<a href="#/courses/' + esc(course.slug) + '" class="btn btn-primary btn-sm" data-link>View Details</a>' +
+                    '<button type="button" class="btn btn-outline btn-sm" data-open-enquiry data-course="' + esc(course.slug) + '">Enquire</button>' +
+                '</div>' +
+            '</div>' +
+        '</article>';
+    }
+
+    function facultyCard(person) {
+        const exp = person.experience ? person.experience + '+ yrs experience' : '';
+        return '' +
+        '<article class="faculty-card reveal">' +
+            '<div class="faculty-avatar">' +
+                (person.photo
+                    ? '<img class="lazy-img" src="' + IMG_PLACEHOLDER + '" data-src="' + esc(person.photo) + '" alt="' + esc(person.name) + '"/>'
+                    : '<span>' + esc(initials(person.name)) + '</span>') +
+            '</div>' +
+            '<h3 class="faculty-name">' + esc(person.name) + '</h3>' +
+            (person.designation ? '<div class="faculty-role">' + esc(person.designation) + '</div>' : '') +
+            '<div class="faculty-meta">' +
+                (person.specialization ? '<span>' + esc(person.specialization) + '</span>' : '') +
+                (exp ? '<span>' + esc(exp) + '</span>' : '') +
+            '</div>' +
+            (person.qualification ? '<p class="faculty-qual">' + esc(person.qualification) + '</p>' : '') +
+            (person.bio ? '<p class="faculty-bio">' + esc(person.bio) + '</p>' : '') +
+        '</article>';
+    }
+
+    function testimonialCard(t) {
+        const rating = Math.max(1, Math.min(5, Number(t.rating) || 5));
+        let stars = '';
+        for (let i = 0; i < rating; i++) stars += '<span class="material-symbols-outlined">star</span>';
+        return '' +
+        '<figure class="testimonial-card reveal">' +
+            '<div class="testimonial-stars">' + stars + '</div>' +
+            '<blockquote class="testimonial-text">' + esc(t.content) + '</blockquote>' +
+            '<figcaption class="testimonial-author">' +
+                '<div class="testimonial-avatar">' + esc(initials(t.student_name)) + '</div>' +
+                '<div>' +
+                    '<div class="testimonial-name">' + esc(t.student_name) + '</div>' +
+                    (t.designation ? '<div class="testimonial-course">' + esc(t.designation) + '</div>' : '') +
+                '</div>' +
+            '</figcaption>' +
+        '</figure>';
+    }
+
+    function faqItem(f, index) {
+        return '' +
+        '<div class="faq-item" data-faq="' + index + '">' +
+            '<button type="button" class="faq-question" aria-expanded="false">' +
+                '<span>' + esc(f.question) + '</span>' +
+                '<span class="faq-icon"><span class="material-symbols-outlined">expand_more</span></span>' +
+            '</button>' +
+            '<div class="faq-answer"><div class="faq-answer-inner">' + esc(f.answer) + '</div></div>' +
+        '</div>';
+    }
+
+    function sectionHeader(label, title, desc, center) {
+        return '' +
+        '<div class="section-header reveal' + (center ? ' center' : '') + '">' +
+            '<div class="section-label">' + esc(label) + '</div>' +
+            '<h2 class="section-title">' + esc(title) + '</h2>' +
+            (desc ? '<p class="section-desc">' + esc(desc) + '</p>' : '') +
+        '</div>';
+    }
+
+    function emptyState(icon, message) {
+        return '<div class="empty-state"><span class="material-symbols-outlined">' + icon + '</span><p>' + esc(message) + '</p></div>';
+    }
+
+    function contactSection() {
+        return '' +
+        '<section class="section section-alt">' +
+            '<div class="container">' +
+                '<div class="contact-layout">' +
+                    '<div class="contact-info-card">' +
+                        '<h2 class="contact-heading">Get in Touch</h2>' +
+                        '<div class="contact-detail">' +
+                            '<div class="contact-detail-icon"><span class="material-symbols-outlined">location_on</span></div>' +
+                            '<div><h4>Visit Us</h4><p data-setting="contact_address">Gamharia Chowk, Jamshedpur, Jharkhand</p></div>' +
+                        '</div>' +
+                        '<div class="contact-detail">' +
+                            '<div class="contact-detail-icon"><span class="material-symbols-outlined">call</span></div>' +
+                            '<div><h4>Call Us</h4><p><a data-setting-href="tel:contact_phone" data-setting-text="contact_phone" href="tel:+918789961355">+91 87899 61355</a></p><span>Mon&ndash;Sat, 9AM &ndash; 6PM</span></div>' +
+                        '</div>' +
+                        '<div class="contact-detail">' +
+                            '<div class="contact-detail-icon green"><span class="material-symbols-outlined">chat</span></div>' +
+                            '<div><h4>Message Us</h4><p><a data-setting-href="https://wa.me/whatsapp_number" href="https://wa.me/918789961355" target="_blank" rel="noopener">WhatsApp Support</a></p><span>Quick replies within 1 hr</span></div>' +
+                        '</div>' +
+                        '<div class="contact-detail">' +
+                            '<div class="contact-detail-icon"><span class="material-symbols-outlined">mail</span></div>' +
+                            '<div><h4>Email Us</h4><p><a data-setting-href="mailto:contact_email" data-setting-text="contact_email" href="mailto:info@globalinstitute.edu.in">info@globalinstitute.edu.in</a></p></div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="contact-form-card">' +
+                        '<h3 class="contact-heading sm">Send an Enquiry</h3>' +
+                        '<p class="contact-sub-text">Fill in the form and our admissions team will get back to you.</p>' +
+                        '<form id="contact-enquiry-form" class="form-stack">' +
+                            '<div class="form-row">' +
+                                '<div class="form-group"><label class="form-label">Full Name *</label><input type="text" name="name" class="form-input" placeholder="Your name" required maxlength="255"/></div>' +
+                                '<div class="form-group"><label class="form-label">Phone Number *</label><input type="tel" name="phone" class="form-input" placeholder="+91 00000 00000" required maxlength="20"/></div>' +
+                            '</div>' +
+                            '<div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-input" placeholder="you@example.com" maxlength="255"/></div>' +
+                            '<div class="form-group"><label class="form-label">Course of Interest</label><select name="course_slug" class="form-input" data-course-select><option value="">Select a course&hellip;</option><option value="other">Other / Not Sure</option></select></div>' +
+                            '<div class="form-group"><label class="form-label">Message</label><textarea name="message" class="form-input" rows="4" placeholder="How can we help you?" maxlength="1000"></textarea></div>' +
+                            '<button type="submit" class="btn btn-primary btn-full">Send Enquiry</button>' +
+                        '</form>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</section>';
+    }
+
+    function mapSection() {
+        return '' +
+        '<section class="map-section">' +
+            '<div class="map-canvas">' +
+                '<div class="map-pin">' +
+                    '<div class="map-card"><strong data-setting="site_name">Global Institute</strong><span data-setting="contact_address">Gamharia Chowk, Jamshedpur</span></div>' +
+                    '<span class="material-symbols-outlined">location_on</span>' +
+                '</div>' +
+            '</div>' +
+        '</section>';
+    }
+
+    /* --------------------------------------------------------
+       Pages
+       -------------------------------------------------------- */
+    const Pages = {
+
+        notFound() {
+            document.title = 'Page Not Found | Global Institute & CAD CAM';
+            document.getElementById('app').innerHTML = '' +
+            '<div class="state-page">' +
+                '<span class="material-symbols-outlined state-icon">search_off</span>' +
+                '<h1>Page Not Found</h1>' +
+                '<p>The page you are looking for does not exist or has been moved.</p>' +
+                '<a href="#/" class="btn btn-primary" data-link>Back to Home</a>' +
+            '</div>';
+        },
+
+        async home() {
+            document.title = 'Global Institute & CAD CAM | Industrial Training & Professional Certification';
+            const [courses, faculty, facilities, testimonials, faqs, announcements] = await Promise.all([
+                Store.courses(), Store.faculty(), Store.facilities(),
+                Store.testimonials(), Store.faqs(), Store.announcements()
+            ]);
+
+            const labCount = facilities.filter(f => /lab|workshop/.test(f.type)).length || facilities.length;
+            const featured = (courses.filter(c => c.featured).length ? courses.filter(c => c.featured) : courses).slice(0, 6);
+
+            const categories = [];
+            courses.forEach(c => {
+                if (c.category_slug && !categories.some(x => x.slug === c.category_slug)) {
+                    categories.push({ slug: c.category_slug, name: c.category, count: courses.filter(x => x.category_slug === c.category_slug).length });
+                }
+            });
+
+            const heroStats = [
+                { value: courses.length, label: 'Programs' },
+                { value: faculty.length, label: 'Expert Faculty' },
+                { value: labCount, label: 'Training Labs' },
+                { value: categories.length, label: 'Skill Domains' },
+            ];
+
+            const trustItems = [
+                ['factory', 'Industry-Aligned Curriculum'],
+                ['construction', 'Hands-On Training'],
+                ['workspace_premium', 'Certification'],
+                ['trending_up', 'Placement Assistance'],
+            ];
+
+            const categoryCards = categories.map(c => {
+                const meta = categoryMeta(c.slug);
+                return '<a class="category-card reveal" href="#/courses?category=' + esc(c.slug) + '">' +
+                    '<div class="category-card-icon"><span class="material-symbols-outlined">' + meta.icon + '</span></div>' +
+                    '<h3>' + esc(c.name) + '</h3>' +
+                    '<p>' + c.count + ' program' + (c.count === 1 ? '' : 's') + '</p>' +
+                    '<span class="category-card-arrow"><span class="material-symbols-outlined">arrow_forward</span></span>' +
+                '</a>';
+            }).join('');
+
+            const whyCards = [
+                ['precision_manufacturing', 'Industry-Oriented Curriculum', 'Training built around practical industry requirements, not just theory.'],
+                ['build', 'Hands-On Learning', 'Practical sessions on industry-standard software and equipment.'],
+                ['groups', 'Experienced Trainers', 'Learn from instructors with real design and manufacturing experience.'],
+                ['workspace_premium', 'Industry Certification', 'Build credible proof of your skills that employers recognise.'],
+                ['trending_up', 'Career Focus', 'Training aligned with employment opportunities and professional growth.'],
+                ['schedule', 'Flexible Batches', 'Morning and evening batch timings designed for students and professionals.'],
+            ].map(w => '<div class="why-card reveal"><div class="why-card-icon"><span class="material-symbols-outlined">' + w[0] + '</span></div><div><h3>' + esc(w[1]) + '</h3><p>' + esc(w[2]) + '</p></div></div>').join('');
+
+            const steps = [
+                ['menu_book', 'Learn', 'Understand the fundamentals with expert trainers.'],
+                ['science', 'Practice', 'Work with industry-standard tools and machines.'],
+                ['construction', 'Build', 'Complete practical, real-world projects.'],
+                ['workspace_premium', 'Certify', 'Earn industry-recognised certification.'],
+                ['trending_up', 'Grow', 'Advance your career with in-demand skills.'],
+            ].map((s, i) => '<div class="journey-step reveal reveal-delay-' + (i + 1) + '"><span class="material-symbols-outlined">' + s[0] + '</span><div class="journey-step-number">0' + (i + 1) + '</div><div class="journey-step-line"></div><h3>' + esc(s[1]) + '</h3><p>' + esc(s[2]) + '</p></div>').join('');
+
+            const newsItems = announcements.length
+                ? announcements.map(a => '<div class="news-item reveal"><div class="news-date"><span class="material-symbols-outlined">campaign</span>' + (a.date ? esc(a.date) : 'Update') + '</div><h3>' + esc(a.title) + '</h3><p>' + esc(a.message) + '</p>' + (a.button_url ? '<a class="news-link" href="' + esc(a.button_url) + '">' + esc(a.button_text || 'Read more') + ' <span class="material-symbols-outlined">arrow_forward</span></a>' : '') + '</div>').join('')
+                : '';
+
+            const facultyPreview = faculty.slice(0, 4).map(facultyCard).join('');
+            const facilityPreview = facilities.slice(0, 4).map(f => {
+                const meta = facilityMeta(f.type);
+                return '<div class="facility-chip reveal"><span class="material-symbols-outlined">' + meta.icon + '</span><div><strong>' + esc(meta.label) + '</strong><span>' + esc(f.capacity ? 'Capacity ' + f.capacity : 'Available') + '</span></div></div>';
+            }).join('');
+
+            const app = document.getElementById('app');
+            app.innerHTML = '' +
+            '<section class="hero">' +
+                '<div class="hero-bg-pattern"></div>' +
+                '<div class="container hero-grid">' +
+                    '<div class="hero-content">' +
+                        '<div class="hero-badge"><span class="hero-badge-dot"></span>Industrial Technical Training</div>' +
+                        '<h1 class="hero-title">Build <span class="hero-title-accent">industry-ready skills.</span> Build your career.</h1>' +
+                        '<p class="hero-desc">Practical, hands-on training in CAD/CAM, CNC programming and industrial skills &mdash; delivered at our Gamharia, Jamshedpur campus with expert faculty and industry-standard labs.</p>' +
+                        '<div class="hero-actions">' +
+                            '<a href="#/courses" class="btn btn-secondary btn-lg" data-link>Explore Programs</a>' +
+                            '<button type="button" class="btn btn-outline-light btn-lg" data-open-enquiry>Talk to an Advisor</button>' +
+                        '</div>' +
+                        '<div class="hero-stats-row">' +
+                            heroStats.map(s => '<div><div class="hero-stat-value">' + s.value + '</div><div class="hero-stat-label">' + esc(s.label) + '</div></div>').join('') +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="hero-visual">' +
+                        '<div class="hero-panel">' +
+                            '<div class="hero-panel-grid blueprint-grid"></div>' +
+                            '<div class="hero-panel-head"><span class="material-symbols-outlined">precision_manufacturing</span><span>Training Environment</span></div>' +
+                            '<div class="hero-panel-chips">' +
+                                facilities.slice(0, 6).map(f => '<span class="hero-chip"><span class="material-symbols-outlined">' + facilityMeta(f.type).icon + '</span>' + esc(f.name) + '</span>').join('') +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="hero-visual-float hero-visual-float-1"><span class="material-symbols-outlined">workspace_premium</span><div><strong>Certified Programs</strong><span>Industry-recognised</span></div></div>' +
+                        '<div class="hero-visual-float hero-visual-float-2"><span class="material-symbols-outlined">engineering</span><div><strong>Hands-On Learning</strong><span>Practical training</span></div></div>' +
+                    '</div>' +
+                '</div>' +
+            '</section>' +
+
+            '<section class="trust-bar"><div class="trust-items">' +
+                trustItems.map(t => '<div class="trust-item"><span class="material-symbols-outlined">' + t[0] + '</span><span>' + esc(t[1]) + '</span></div>').join('') +
+            '</div></section>' +
+
+            (newsItems ? '<section class="section"><div class="container">' + sectionHeader('What\'s New', 'News & Announcements', 'The latest updates from the institute.') + '<div class="news-grid">' + newsItems + '</div></div></section>' : '') +
+
+            '<section class="section">' +
+                '<div class="container">' +
+                    sectionHeader('Our Domains', 'Training built around real industry skills', 'Explore our range of technical programs designed to make you job-ready.') +
+                    '<div class="grid-4">' + categoryCards + '</div>' +
+                '</div>' +
+            '</section>' +
+
+            '<section class="section section-alt">' +
+                '<div class="container">' +
+                    sectionHeader('Most Popular', 'Featured programs', 'Our most sought-after courses, ready for enrolment.') +
+                    '<div class="grid-3">' + featured.map(courseCard).join('') + '</div>' +
+                    '<div class="section-cta"><a href="#/courses" class="btn btn-primary" data-link>View all programs <span class="material-symbols-outlined">arrow_forward</span></a></div>' +
+                '</div>' +
+            '</section>' +
+
+            '<section class="section">' +
+                '<div class="container">' +
+                    sectionHeader('Your Path', 'The learning journey', 'A structured path from learning to career growth.', true) +
+                    '<div class="journey-timeline">' + steps + '</div>' +
+                '</div>' +
+            '</section>' +
+
+            '<section class="section section-alt">' +
+                '<div class="container">' +
+                    sectionHeader('Why Us', 'Why students choose our training', 'We combine industry expertise with practical learning to deliver real outcomes.') +
+                    '<div class="grid-2">' + whyCards + '</div>' +
+                '</div>' +
+            '</section>' +
+
+            '<section class="section">' +
+                '<div class="container">' +
+                    sectionHeader('Our People', 'Learn from experienced faculty', 'Qualified trainers with real design and manufacturing experience.') +
+                    '<div class="grid-4">' + facultyPreview + '</div>' +
+                    '<div class="section-cta"><a href="#/faculty" class="btn btn-outline" data-link>Meet the full faculty <span class="material-symbols-outlined">arrow_forward</span></a></div>' +
+                '</div>' +
+            '</section>' +
+
+            '<section class="section section-alt">' +
+                '<div class="container">' +
+                    '<div class="split-feature">' +
+                        '<div>' +
+                            sectionHeader('Campus', 'Purpose-built training facilities', 'Learn in labs and workshops that mirror modern production environments.') +
+                            '<div class="facility-chips">' + (facilityPreview || emptyState('apartment', 'Facilities coming soon.')) + '</div>' +
+                            '<div class="section-cta left"><a href="#/facilities" class="btn btn-outline" data-link>Explore facilities <span class="material-symbols-outlined">arrow_forward</span></a></div>' +
+                        '</div>' +
+                        '<div class="split-feature-media">' +
+                            '<div class="media-placeholder tall"><span class="material-symbols-outlined">precision_manufacturing</span></div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</section>' +
+
+            (testimonials.length ?
+            '<section class="section">' +
+                '<div class="container">' +
+                    sectionHeader('Testimonials', 'What our students say', 'Real experiences from students who trained with us.') +
+                    '<div class="grid-3">' + testimonials.slice(0, 6).map(testimonialCard).join('') + '</div>' +
+                '</div>' +
+            '</section>' : '') +
+
+            (faqs.length ?
+            '<section class="section section-alt">' +
+                '<div class="container container-narrow">' +
+                    sectionHeader('FAQs', 'Frequently asked questions', 'Answers to common questions about our programs.', true) +
+                    '<div class="faq-list">' + faqs.slice(0, 6).map(faqItem).join('') + '</div>' +
+                '</div>' +
+            '</section>' : '') +
+
+            '<section class="cta-section">' +
+                '<div class="container cta-inner">' +
+                    '<h2 class="section-title">Ready to build industry-ready skills?</h2>' +
+                    '<p class="section-desc">Choose the right program and take the next step toward your professional goals.</p>' +
+                    '<div class="section-cta"><a href="#/courses" class="btn btn-secondary btn-lg" data-link>Explore Programs</a><button type="button" class="btn btn-outline-light btn-lg" data-open-enquiry>Enquire Now</button></div>' +
+                '</div>' +
+            '</section>';
+
+            initFaq();
+            initReveal();
+        },
+
+        async courses() {
+            document.title = 'Courses | Global Institute & CAD CAM';
+            const courses = await Store.courses();
+            const categories = [];
+            courses.forEach(c => {
+                if (c.category_slug && !categories.some(x => x.slug === c.category_slug)) {
+                    categories.push({ slug: c.category_slug, name: c.category, icon: categoryMeta(c.category_slug).icon });
+                }
+            });
+
+            const filterHtml = categories.map(c =>
+                '<label class="filter-item"><input type="checkbox" class="category-filter" data-category="' + esc(c.slug) + '"/><span class="material-symbols-outlined">' + c.icon + '</span>' + esc(c.name) + '</label>'
+            ).join('');
+
+            const app = document.getElementById('app');
+            app.innerHTML = '' +
+            '<div class="container page-wrap">' +
+                '<nav class="breadcrumb"><a href="#/" data-link>Home</a><span class="material-symbols-outlined">chevron_right</span><span>Courses</span></nav>' +
+                '<header class="page-header">' +
+                    '<h1>Our Courses</h1>' +
+                    '<p>Industry-standard CAD/CAM, CNC, industrial and computer skill programs &mdash; ' + courses.length + ' programs available.</p>' +
+                '</header>' +
+                '<div class="courses-layout">' +
+                    '<aside class="courses-sidebar">' +
+                        '<div class="sidebar-card">' +
+                            '<label class="filter-label" for="course-search">Search Courses</label>' +
+                            '<div class="search-input-wrapper"><span class="material-symbols-outlined">search</span>' +
+                            '<input type="text" id="course-search" class="form-input course-search-input" placeholder="Enter keyword&hellip;"/></div>' +
+                        '</div>' +
+                        (categories.length ?
+                        '<div class="sidebar-card"><label class="filter-label">Categories</label><div class="filter-group">' +
+                            '<label class="filter-item"><input type="checkbox" class="category-filter" data-category="all"/><span class="material-symbols-outlined">apps</span>All Courses</label>' +
+                            filterHtml +
+                        '</div></div>' : '') +
+                        '<div class="counselling-card">' +
+                            '<div class="counselling-head"><span class="material-symbols-outlined">support_agent</span><h3>Free Counselling</h3></div>' +
+                            '<p>Not sure which program suits you? Speak to our advisors.</p>' +
+                            '<button type="button" class="btn btn-outline btn-full" data-open-enquiry>Book a Call</button>' +
+                        '</div>' +
+                        '<div class="lead-magnet-card">' +
+                            '<span class="material-symbols-outlined">description</span>' +
+                            '<h3>Need details?</h3>' +
+                            '<p>Request the syllabus, fees and batch details for any program.</p>' +
+                            '<button type="button" class="btn btn-secondary btn-full" data-open-enquiry>Request Syllabus</button>' +
+                        '</div>' +
+                    '</aside>' +
+                    '<div class="courses-grid" id="courses-grid">' +
+                        (courses.length ? courses.map(courseCard).join('') : emptyState('school', 'Courses will be published soon.')) +
+                    '</div>' +
+                '</div>' +
+                '<div class="empty-state courses-empty" id="courses-empty" hidden><span class="material-symbols-outlined">search_off</span><p>No courses match your filters.</p></div>' +
+            '</div>';
+
+            initCourseFilter();
+            initReveal();
+        },
+
+        async courseDetail(slug) {
+            const course = await Store.course(slug);
+            if (!course) return Pages.notFound();
+
+            document.title = (course.title || 'Course') + ' | Global Institute & CAD CAM';
+            const meta = categoryMeta(course.category_slug);
+            const skills = course.skills || [];
+
+            const curriculum = skills.map((s, i) =>
+                '<div class="curriculum-card reveal"><span class="material-symbols-outlined">' + (i % 2 ? 'verified' : 'menu_book') + '</span><h3>' + esc(s) + '</h3></div>'
+            ).join('');
+
+            const career = (course.career_information || '')
+                .split(/[,;]\s*/).map(s => s.trim()).filter(Boolean)
+                .map(c => '<span class="career-tag">' + esc(c) + '</span>').join('');
+
+            const app = document.getElementById('app');
+            app.innerHTML = '' +
+            '<div class="container page-wrap">' +
+                '<nav class="breadcrumb"><a href="#/" data-link>Home</a><span class="material-symbols-outlined">chevron_right</span><a href="#/courses" data-link>Courses</a><span class="material-symbols-outlined">chevron_right</span><span>' + esc(course.title) + '</span></nav>' +
+                '<section class="course-hero">' +
+                    '<div class="blueprint-grid course-hero-grid-bg"></div>' +
+                    '<div class="container course-hero-grid">' +
+                        '<div class="course-hero-info">' +
+                            '<span class="badge badge-primary"><span class="material-symbols-outlined">' + meta.icon + '</span>' + esc(meta.label) + '</span>' +
+                            '<h1>' + esc(course.title) + '</h1>' +
+                            '<p>' + esc(course.short_description || '') + '</p>' +
+                            '<div class="course-meta-grid">' +
+                                '<div class="course-meta-item"><span class="course-meta-label">Duration</span><span class="course-meta-value">' + esc(course.duration || 'Flexible') + '</span></div>' +
+                                '<div class="course-meta-item"><span class="course-meta-label">Category</span><span class="course-meta-value">' + esc(meta.label) + '</span></div>' +
+                                '<div class="course-meta-item"><span class="course-meta-label">Investment</span><span class="course-meta-value">' + formatFee(course.fees) + '</span></div>' +
+                                '<div class="course-meta-item"><span class="course-meta-label">Certificate</span><span class="course-meta-value">Included</span></div>' +
+                            '</div>' +
+                            '<div class="course-hero-actions">' +
+                                '<button type="button" class="btn btn-secondary" data-open-enquiry data-course="' + esc(course.slug) + '">Request Syllabus <span class="material-symbols-outlined">download</span></button>' +
+                                '<button type="button" class="btn btn-outline" data-open-enquiry data-course="' + esc(course.slug) + '">Enquire Now</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="course-hero-media">' + courseMedia(course) + '</div>' +
+                    '</div>' +
+                '</section>' +
+
+                '<section class="section">' +
+                    '<div class="course-detail-layout">' +
+                        '<div class="course-content">' +
+                            (course.overview ? '<div class="course-block"><h2><span class="material-symbols-outlined">info</span> Course Overview</h2><p>' + esc(course.overview) + '</p></div>' : '') +
+                            (course.description ? '<div class="course-block"><h2><span class="material-symbols-outlined">description</span> About this program</h2><p>' + esc(course.description) + '</p></div>' : '') +
+                            (curriculum ? '<div class="course-block"><h2><span class="material-symbols-outlined">menu_book</span> What you will learn</h2><div class="curriculum-grid">' + curriculum + '</div></div>' : '') +
+                            (career ? '<div class="course-block"><h2><span class="material-symbols-outlined">work</span> Career pathways</h2><p>Roles our graduates are prepared for:</p><div class="career-tags">' + career + '</div></div>' : '') +
+                        '</div>' +
+                        '<aside class="course-sidebar">' +
+                            '<div class="fee-card">' +
+                                '<div class="fee-label">Course Investment</div>' +
+                                '<div class="fee-amount">' + formatFee(course.fees) + '</div>' +
+                                '<ul class="fee-list">' +
+                                    (course.duration ? '<li class="fee-list-item"><span class="material-symbols-outlined">schedule</span>Duration: ' + esc(course.duration) + '</li>' : '') +
+                                    (course.eligibility ? '<li class="fee-list-item"><span class="material-symbols-outlined">school</span>Eligibility: ' + esc(course.eligibility) + '</li>' : '') +
+                                    '<li class="fee-list-item"><span class="material-symbols-outlined">workspace_premium</span>Industry certificate included</li>' +
+                                '</ul>' +
+                                '<button type="button" class="btn btn-primary btn-full" data-open-enquiry data-course="' + esc(course.slug) + '">Enrol Now</button>' +
+                                '<button type="button" class="btn btn-outline btn-full" data-open-enquiry data-course="' + esc(course.slug) + '"><span class="material-symbols-outlined">call</span> Request Callback</button>' +
+                            '</div>' +
+                            (course.batch_information ? '<div class="batch-card"><h3><span class="material-symbols-outlined">calendar_month</span> Batches</h3><p>' + esc(course.batch_information) + '</p></div>' : '') +
+                            (course.eligibility ? '<div class="batch-card"><h3><span class="material-symbols-outlined">how_to_reg</span> Eligibility</h3><p>' + esc(course.eligibility) + '</p></div>' : '') +
+                        '</aside>' +
+                    '</div>' +
+                '</section>' +
+            '</div>' +
+            contactSection();
+
+            initReveal();
+        },
+
+        async faculty() {
+            document.title = 'Faculty | Global Institute & CAD CAM';
+            const faculty = await Store.faculty();
+            const app = document.getElementById('app');
+            app.innerHTML = '' +
+            '<div class="container page-wrap">' +
+                '<nav class="breadcrumb"><a href="#/" data-link>Home</a><span class="material-symbols-outlined">chevron_right</span><span>Faculty</span></nav>' +
+                '<header class="page-header"><h1>Our Faculty</h1><p>Qualified trainers and industry professionals who guide every batch.</p></header>' +
+                (faculty.length ? '<div class="grid-4">' + faculty.map(facultyCard).join('') + '</div>' : emptyState('groups', 'Faculty profiles will be published soon.')) +
+                '<section class="cta-banner">' +
+                    '<h2 class="section-title">Want to learn from our experts?</h2>' +
+                    '<p class="section-desc">Explore the programs they teach and reserve your seat.</p>' +
+                    '<div class="section-cta"><a href="#/courses" class="btn btn-secondary" data-link>View Programs</a><button type="button" class="btn btn-outline-light" data-open-enquiry>Enquire Now</button></div>' +
+                '</section>' +
+            '</div>';
+            initReveal();
+        },
+
+        async facilities() {
+            document.title = 'Facilities | Global Institute & CAD CAM';
+            const facilities = await Store.facilities();
+            const grouped = {};
+            facilities.forEach(f => { (grouped[f.type] = grouped[f.type] || []).push(f); });
+
+            const groupsHtml = Object.keys(grouped).map(type => {
+                const meta = facilityMeta(type);
+                const rooms = grouped[type];
+                const total = rooms.reduce((sum, r) => sum + (r.capacity || 0), 0);
+                return '<div class="facility-group reveal">' +
+                    '<div class="facility-group-head"><span class="material-symbols-outlined">' + meta.icon + '</span><div><h3>' + esc(meta.label) + '</h3><span>' + rooms.length + ' space' + (rooms.length === 1 ? '' : 's') + (total ? ' &middot; ' + total + ' seats' : '') + '</span></div></div>' +
+                    '<ul class="facility-list">' + rooms.map(r => '<li><span class="material-symbols-outlined">check</span>' + esc(r.name) + (r.capacity ? ' <em>(' + r.capacity + ' capacity)</em>' : '') + '</li>').join('') + '</ul>' +
+                '</div>';
+            }).join('');
+
+            const app = document.getElementById('app');
+            app.innerHTML = '' +
+            '<div class="container page-wrap">' +
+                '<nav class="breadcrumb"><a href="#/" data-link>Home</a><span class="material-symbols-outlined">chevron_right</span><span>Facilities</span></nav>' +
+                '<header class="page-header"><h1>Campus Facilities</h1><p>Purpose-built labs and workshops that mirror modern production environments.</p></header>' +
+                (facilities.length ?
+                    '<div class="grid-3">' + groupsHtml + '</div>' +
+                    '<section class="facility-highlights">' +
+                        sectionHeader('Highlights', 'Learning by doing', 'Our training spaces support extensive practical sessions across every program.') +
+                        '<div class="grid-3">' +
+                            '<div class="why-card reveal"><div class="why-card-icon"><span class="material-symbols-outlined">precision_manufacturing</span></div><div><h3>Industry-Standard Equipment</h3><p>Train on the software and machines used by leading employers.</p></div></div>' +
+                            '<div class="why-card reveal"><div class="why-card-icon"><span class="material-symbols-outlined">groups</span></div><div><h3>Small Batch Sizes</h3><p>Focused attention for every learner in every practical session.</p></div></div>' +
+                            '<div class="why-card reveal"><div class="why-card-icon"><span class="material-symbols-outlined">health_and_safety</span></div><div><h3>Safe Environment</h3><p>Safety standards maintained across all training areas.</p></div></div>' +
+                        '</div>' +
+                    '</section>'
+                : emptyState('apartment', 'Facility details will be published soon.')) +
+            '</div>';
+            initReveal();
+        },
+
+        async about() {
+            document.title = 'About Us | Global Institute & CAD CAM';
+            const [faculty, facilities, courses] = await Promise.all([Store.faculty(), Store.facilities(), Store.courses()]);
+            const values = [
+                ['precision_manufacturing', 'Technical Excellence', 'Industry-grade equipment and curriculum developed with manufacturing partners.'],
+                ['groups', 'Student-Centred', 'Small batch sizes, personal attention and mentorship-driven learning.'],
+                ['handshake', 'Industry Partnership', 'Collaboration with manufacturing firms for curriculum and placements.'],
+                ['emoji_events', 'Results Oriented', 'Measurable outcomes supported by placement assistance.'],
+                ['security', 'Safety First', 'Strong safety standards across every practical environment.'],
+                ['eco', 'Sustainability', 'Responsible, forward-looking training practices.'],
+            ].map(v => '<div class="value-card reveal"><span class="material-symbols-outlined">' + v[0] + '</span><h3>' + esc(v[1]) + '</h3><p>' + esc(v[2]) + '</p></div>').join('');
+
+            const app = document.getElementById('app');
+            app.innerHTML = '' +
+            '<div class="container page-wrap">' +
+                '<nav class="breadcrumb"><a href="#/" data-link>Home</a><span class="material-symbols-outlined">chevron_right</span><span>About</span></nav>' +
+                '<header class="page-header"><h1>About Global Institute</h1><p>A technical training institute in Gamharia, Jamshedpur, Jharkhand.</p></header>' +
+
+                '<section class="about-mission">' +
+                    '<div class="mission-card primary">' +
+                        '<div class="blueprint-dark mission-bg"></div>' +
+                        '<span class="material-symbols-outlined">flag</span>' +
+                        '<h2>Our Mission</h2>' +
+                        '<p>To bridge the gap between academic education and industry requirements by providing practical technical training that equips youth with job-ready skills for the modern manufacturing sector.</p>' +
+                    '</div>' +
+                    '<div class="mission-card">' +
+                        '<span class="material-symbols-outlined">visibility</span>' +
+                        '<h2>Our Vision</h2>' +
+                        '<p>To be a leading skill-development institute in Eastern India, producing industry-ready professionals who contribute to India\u2019s manufacturing and engineering excellence.</p>' +
+                    '</div>' +
+                '</section>' +
+
+                '<section class="stats-row">' +
+                    '<div class="stat-card"><div class="stat-value">' + courses.length + '</div><div class="stat-label">Programs</div></div>' +
+                    '<div class="stat-card"><div class="stat-value">' + faculty.length + '</div><div class="stat-label">Faculty</div></div>' +
+                    '<div class="stat-card"><div class="stat-value">' + facilities.length + '</div><div class="stat-label">Labs & Rooms</div></div>' +
+                    '<div class="stat-card"><div class="stat-value">100%</div><div class="stat-label">Placement Assistance</div></div>' +
+                '</section>' +
+
+                '<section class="section">' + sectionHeader('Our Values', 'What we stand for', 'The principles behind every training program we run.') + '<div class="about-values-grid">' + values + '</div></section>' +
+                '<section class="section">' + sectionHeader('Infrastructure', 'Where you will train', '') + '<div class="facility-chips">' + facilities.map(f => '<div class="facility-chip"><span class="material-symbols-outlined">' + facilityMeta(f.type).icon + '</span><div><strong>' + esc(f.name) + '</strong><span>' + esc(facilityMeta(f.type).label) + (f.capacity ? ' &middot; ' + f.capacity : '') + '</span></div></div>').join('') + '</div></section>' +
+            '</div>';
+            initReveal();
+        },
+
+        async admissions() {
+            document.title = 'Admissions | Global Institute & CAD CAM';
+            const faqs = await Store.faqs();
+            const admissionsFaqs = faqs.filter(f => /admission|fee|eligib/i.test(f.category || '') || /eligib|fee|admission/i.test(f.question || ''));
+            const faqSource = admissionsFaqs.length ? admissionsFaqs : faqs;
+
+            const process = [
+                ['edit_note', 'Application', 'Complete the enquiry form and share your details.'],
+                ['support_agent', 'Counselling', 'Our advisors help you choose the right program and batch.'],
+                ['task_alt', 'Enrollment', 'Confirm your seat and begin your training.'],
+            ].map((p, i) => '<div class="process-card reveal"><span class="process-number">0' + (i + 1) + '</span><div class="process-icon"><span class="material-symbols-outlined">' + p[0] + '</span></div><h3>' + esc(p[1]) + '</h3><p>' + esc(p[2]) + '</p></div>').join('');
+
+            const app = document.getElementById('app');
+            app.innerHTML = '' +
+            '<div class="container page-wrap">' +
+                '<nav class="breadcrumb"><a href="#/" data-link>Home</a><span class="material-symbols-outlined">chevron_right</span><span>Admissions</span></nav>' +
+                '<header class="page-header"><h1>Admissions</h1><p data-setting="enrollment_message">Admissions are now open for upcoming batches. Contact us today!</p></header>' +
+                '<section class="admission-grid">' +
+                    '<div class="admission-info">' +
+                        '<span class="badge badge-secondary"><span class="material-symbols-outlined">event_available</span>Admissions Open</span>' +
+                        '<h2>Start your training journey</h2>' +
+                        '<ul class="check-list">' +
+                            '<li><span class="material-symbols-outlined">check_circle</span>Programs for students, diploma holders, ITI graduates and working professionals.</li>' +
+                            '<li><span class="material-symbols-outlined">check_circle</span>Hands-on training with industry-standard software and equipment.</li>' +
+                            '<li><span class="material-symbols-outlined">check_circle</span>Flexible morning and evening batch timings.</li>' +
+                            '<li><span class="material-symbols-outlined">check_circle</span>Placement assistance, resume help and interview preparation.</li>' +
+                        '</ul>' +
+                    '</div>' +
+                    '<div class="admission-form-card">' +
+                        '<h3>Free Counselling Session</h3>' +
+                        '<p>Speak with our admission advisors to find the right technical path.</p>' +
+                        '<form id="admissions-form" class="form-stack">' +
+                            '<div class="form-group"><label class="form-label">Full Name *</label><input type="text" name="name" class="form-input" placeholder="Your name" required maxlength="255"/></div>' +
+                            '<div class="form-group"><label class="form-label">Phone Number *</label><input type="tel" name="phone" class="form-input" placeholder="+91 00000 00000" required maxlength="20"/></div>' +
+                            '<div class="form-group"><label class="form-label">Course of Interest</label><select name="course_slug" class="form-input" data-course-select><option value="">Select a course&hellip;</option><option value="other">Other / Not Sure</option></select></div>' +
+                            '<div class="form-group"><label class="form-label">Message</label><textarea name="message" class="form-input" rows="3" placeholder="Tell us about your goals" maxlength="1000"></textarea></div>' +
+                            '<button type="submit" class="btn btn-secondary btn-full">Request Callback</button>' +
+                        '</form>' +
+                    '</div>' +
+                '</section>' +
+                '<section class="section">' + sectionHeader('Simplified Path', 'Admission process', '', true) + '<div class="grid-3">' + process + '</div></section>' +
+                (faqSource.length ? '<section class="section section-alt"><div class="container container-narrow">' + sectionHeader('FAQs', 'Admissions FAQ', '', true) + '<div class="faq-list">' + faqSource.map(faqItem).join('') + '</div></div></section>' : '') +
+            '</div>';
+
+            wireForm('admissions-form', { extra: () => ({ source: 'admissions' }), successMessage: 'Counselling request submitted. We will call you shortly.' });
+            initFaq();
+            initReveal();
+        },
+
+        async gallery() {
+            document.title = 'Gallery | Global Institute & CAD CAM';
+            const images = await Store.gallery();
+            const categories = [];
+            images.forEach(g => { if (g.category && !categories.includes(g.category)) categories.push(g.category); });
+
+            const filters = ['All'].concat(categories).map((c, i) =>
+                '<button type="button" class="gallery-filter-btn' + (i === 0 ? ' active' : '') + '" data-gallery-filter="' + esc(c) + '">' + esc(c) + '</button>'
+            ).join('');
+
+            const items = images.map((g, i) =>
+                '<figure class="gallery-item reveal" data-gallery-index="' + i + '" data-gallery-cat="' + esc(g.category) + '">' +
+                    '<img class="lazy-img" src="' + IMG_PLACEHOLDER + '" data-src="' + esc(g.image) + '" alt="' + esc(g.alt_text || g.title || 'Campus image') + '" loading="lazy"/>' +
+                    '<figcaption class="gallery-item-overlay"><span class="gallery-item-cat">' + esc(g.category) + '</span><span class="gallery-item-title">' + esc(g.title) + '</span></figcaption>' +
+                '</figure>'
+            ).join('');
+
+            const app = document.getElementById('app');
+            app.innerHTML = '' +
+            '<div class="container page-wrap">' +
+                '<nav class="breadcrumb"><a href="#/" data-link>Home</a><span class="material-symbols-outlined">chevron_right</span><span>Gallery</span></nav>' +
+                '<header class="page-header"><h1>Gallery</h1><p>A look at our campus, labs and training sessions.</p></header>' +
+                (images.length ?
+                    (categories.length > 1 ? '<div class="gallery-filters">' + filters + '</div>' : '') +
+                    '<div class="gallery-grid">' + items + '</div>'
+                : emptyState('photo_library', 'Gallery images will be added soon.')) +
+            '</div>' +
+            '<div class="lightbox" id="lightbox" aria-hidden="true"><button class="lightbox-close" aria-label="Close"><span class="material-symbols-outlined">close</span></button><img alt=""/></div>';
+
+            initGallery(images);
+            initReveal();
+        },
+
+        async contact() {
+            document.title = 'Contact | Global Institute & CAD CAM';
+            document.getElementById('app').innerHTML = '' +
+            '<div class="container page-wrap">' +
+                '<nav class="breadcrumb"><a href="#/" data-link>Home</a><span class="material-symbols-outlined">chevron_right</span><span>Contact</span></nav>' +
+                '<header class="page-header"><h1>Contact Us</h1><p>Get in touch with our admissions team to start your journey in technical training.</p></header>' +
+            '</div>' +
+            contactSection() +
+            mapSection();
+
+            wireForm('contact-enquiry-form');
+        }
+    };
+
+    /* --------------------------------------------------------
+       Page behaviours
+       -------------------------------------------------------- */
+    function initReveal() {
+        const els = document.querySelectorAll('.reveal:not(.visible)');
+        if (!('IntersectionObserver' in window)) { els.forEach(e => e.classList.add('visible')); return; }
+        const observer = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) { entry.target.classList.add('visible'); obs.unobserve(entry.target); }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+        els.forEach(el => observer.observe(el));
+    }
+
+    function initFaq() {
         document.querySelectorAll('.faq-question').forEach(btn => {
             btn.addEventListener('click', () => {
                 const item = btn.closest('.faq-item');
                 const isOpen = item.classList.contains('open');
-                document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
-                if (!isOpen) item.classList.add('open');
+                document.querySelectorAll('.faq-item.open').forEach(i => { i.classList.remove('open'); const q = i.querySelector('.faq-question'); if (q) q.setAttribute('aria-expanded', 'false'); });
+                if (!isOpen) { item.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
             });
         });
     }
 
-    /* ------------------------------------------
-       Mobile Navigation
-       ------------------------------------------ */
-    function initMobileNav() {
-        const menuBtn = document.getElementById('mobile-menu-btn');
-        const overlay = document.getElementById('mobile-nav-overlay');
-        const closeBtn = document.getElementById('mobile-close-btn');
-
-        menuBtn?.addEventListener('click', () => {
-            overlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        });
-
-        closeBtn?.addEventListener('click', () => {
-            overlay.classList.remove('active');
-            document.body.style.overflow = '';
-        });
-
-        overlay?.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                overlay.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-        });
-    }
-
-    /* ------------------------------------------
-       Course Filter
-       ------------------------------------------ */
     function initCourseFilter() {
         const searchInput = document.querySelector('.course-search-input');
         const checkboxes = document.querySelectorAll('.category-filter');
         const cards = document.querySelectorAll('.course-filter-card');
+        const emptyEl = document.getElementById('courses-empty');
+        if (!cards.length) return;
 
-        if (!searchInput || !cards.length) return;
-
-        function filterCourses() {
-            const search = searchInput.value.toLowerCase();
-            const activeCategories = Array.from(checkboxes)
-                .filter(cb => cb.checked)
-                .map(cb => cb.dataset.category);
-
+        function apply() {
+            const search = (searchInput ? searchInput.value : '').toLowerCase().trim();
+            const active = Array.from(checkboxes).filter(cb => cb.checked && cb.dataset.category !== 'all').map(cb => cb.dataset.category);
+            const allChecked = Array.from(checkboxes).some(cb => cb.dataset.category === 'all' && cb.checked);
+            let visible = 0;
             cards.forEach(card => {
                 const title = (card.dataset.title || '').toLowerCase();
                 const category = card.dataset.category || '';
                 const matchSearch = !search || title.includes(search);
-                const matchCategory = activeCategories.length === 0 || activeCategories.includes('all') || activeCategories.includes(category);
-                card.style.display = (matchSearch && matchCategory) ? '' : 'none';
+                const matchCategory = active.length === 0 || allChecked || active.includes(category);
+                const show = matchSearch && matchCategory;
+                card.hidden = !show;
+                if (show) visible++;
             });
+            if (emptyEl) emptyEl.hidden = visible !== 0;
         }
 
-        searchInput.addEventListener('input', filterCourses);
-        checkboxes.forEach(cb => cb.addEventListener('change', filterCourses));
+        if (searchInput) searchInput.addEventListener('input', apply);
+        checkboxes.forEach(cb => cb.addEventListener('change', () => {
+            if (cb.dataset.category === 'all' && cb.checked) {
+                checkboxes.forEach(other => { if (other !== cb) other.checked = false; });
+            } else if (cb.checked) {
+                checkboxes.forEach(other => { if (other.dataset.category === 'all') other.checked = false; });
+            }
+            apply();
+        }));
+        apply();
     }
 
-    /* ------------------------------------------
-       Page Renderers
-       ------------------------------------------ */
+    function initGallery(images) {
+        const filters = document.querySelectorAll('[data-gallery-filter]');
+        const items = document.querySelectorAll('.gallery-item');
+        filters.forEach(btn => btn.addEventListener('click', () => {
+            filters.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const cat = btn.dataset.galleryFilter;
+            items.forEach(item => { item.hidden = !(cat === 'All' || item.dataset.galleryCat === cat); });
+        }));
 
-    const Pages = {
-
-        /* ---- 404 ---- */
-        notFound() {
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <div style="min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px;">
-                    <span class="material-symbols-outlined" style="font-size:80px;color:var(--outline-variant);margin-bottom:24px;">search_off</span>
-                    <h1 style="font-family:var(--font-headline);font-size:32px;color:var(--primary);margin-bottom:8px;">Page Not Found</h1>
-                    <p style="color:var(--on-surface-variant);margin-bottom:32px;max-width:400px;">The page you're looking for doesn't exist or has been moved.</p>
-                    <a href="#/" class="btn btn-primary" data-link>Back to Home</a>
-                </div>`;
-        },
-
-        /* ---- HOME ---- */
-        async home() {
-            const [courses, testimonials, faqs] = await Promise.all([
-                DataStore.fetchCourses(), DataStore.fetchTestimonials(), DataStore.fetchFaqs()
-            ]);
-            const fallbackImg = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBLj2Kf6ZGZV8LDP7C5AUQhYyWTGQ1WeyyNvZFpLFeB0pg6JYPV3k4axq4Ov1HnzPxEJ-FVySO3WtGfEkn5X2Lz63LbxAPlIqis9wbqsc0X9KSbPH8_ElkwjUO0nN2JvbeTBLW09tgZE3MFpUOQclq7n3KmOl9szN7KTLtDK3XzfNJsofgblkdEVC6kipAg5I7dFDxfMRqYEQR9pjl0HvMha6kom_xDZs5ArfZ0ocyXa6XPDTILWon7WQ';
-            const featuredHtml = (courses.length ? courses.slice(0, 3) : [
-                {title:'AutoCAD Masterclass',category_slug:'cad-cam',short_description:'Comprehensive training in 2D drafting and 3D modeling for engineering applications.',duration:'6 Weeks',level:'Beginner',image:fallbackImg,slug:'autocad-masterclass'},
-                {title:'SolidWorks Professional',category_slug:'cad-cam',short_description:'Advanced parametric modeling, assembly design, and simulation.',duration:'8 Weeks',level:'Intermediate',image:'https://lh3.googleusercontent.com/aida-public/AB6AXuAUEcOJIvpM1N3s9EtbS36uUfpUrp0qDbTKybdcQ4TvT5L-6WwKkSIB7ZJaLq_tH5Ts2vuUzgkEp0gsiJe3h9BGpLZPKjbi7Fyg8ZUs6NoRlDRCFbe53zXS3nyJ2RC-uWqg8ORxNZ0u188WLUbrjIt-pRBD44Mn192Ef8gxR4yj0eeQMEVFsU5j66vY4qdSVbF3nTIfsWhcCLFmHvLyiHLZRXJs3D4V4Xb3Xh0EKyu7MeWmLaFW_AI9ng',slug:'solidworks-professional'},
-                {title:'CNC/VMC Programming',category_slug:'cnc',short_description:'Hands-on G-code and M-code programming for Vertical Machining Centers.',duration:'3 Months',level:'Advanced',image:'https://lh3.googleusercontent.com/aida-public/AB6AXuA6zw1FYrzMP34yVaZOjU7ggUYyO7pg_c_YuHKoagvM3msiXT-g_mh5s-xv9ZaA0Y04_bNPkouwOJnk71NYK75C3ec0NwJyUNgOmuGPpGSCk0ANBPihmym80hg9DsexWLGNuw7J0UoG7ISiymUw-Xo-kkNCSZNG31Q7ftft8O3DOvjVKCrCIdkABfwiDDmnDYd82YjkigsM6QpmeZOLs1xRg9j_XTdQqLZ8lc_vuu3uCFOH4qhOd8jOkQ',slug:'cnc-vmc-programming'}
-            ]).map(c => Pages._courseCard(c.title, c.category_slug || 'cad-cam', c.short_description || c.description?.substring(0,100) || '', [c.duration || '6 Weeks', c.level || 'Beginner'].filter(Boolean), c.image || fallbackImg)).join('');
-            const testimonialHtml = (testimonials.length ? testimonials : [
-                {student_name:'Rahul Sharma',content:'The SolidWorks course completely transformed my career. I got placed within 2 months of completing the program.',course:'SolidWorks Professional'},
-                {student_name:'Anita Desai',content:'Hands-on CNC training with real machines. The faculty truly understands what industry needs from fresh graduates.',course:'CNC/VMC Programming'},
-                {student_name:'Vikram Singh',content:'Best institute in Jamshedpur for CAD/CAM training. World-class infrastructure and truly expert trainers.',course:'AutoCAD Masterclass'}
-            ]).map(t => `<div class="testimonial-card reveal"><div class="testimonial-stars"><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span><span class="material-symbols-outlined">star</span></div><p class="testimonial-text">"${t.content}"</p><div class="testimonial-author"><div class="testimonial-avatar">${(t.student_name||'S').charAt(0)}</div><div><div class="testimonial-name">${t.student_name}</div><div class="testimonial-course">${t.course||t.designation||''}</div></div></div></div>`).join('');
-            const faqHtml = (faqs.length ? faqs.slice(0,5) : [
-                {question:'What courses do you offer?',answer:'We offer AutoCAD, SolidWorks, CATIA V5, NX CAD, CNC/VMC Programming, and Industrial Training programs designed for career readiness.'},
-                {question:'Who can join these programs?',answer:'Engineering students, diploma holders, ITI graduates, fresh graduates, and working professionals looking to upskill can join our programs.'},
-                {question:'Is training online or offline?',answer:'We offer in-person hands-on training at our Gamharia campus with modern labs and equipment. Some theory modules may be available online.'},
-                {question:'Do you provide certificates?',answer:'Yes, all our programs include industry-recognized certification upon successful completion, validating your skills for employers.'},
-                {question:'Is placement assistance available?',answer:'Yes, we provide dedicated placement assistance including resume building, interview preparation, and connecting graduates with leading employers.'}
-            ]).map((f,i) => `<div class="faq-item" data-faq="${i}"><button class="faq-question"><span>${f.question}</span><span class="faq-icon"><span class="material-symbols-outlined" style="font-size:20px;">expand_more</span></span></button><div class="faq-answer"><div class="faq-answer-inner">${f.answer}</div></div></div>`).join('');
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <!-- Hero Section -->
-                <section class="hero">
-                    <div class="hero-bg-pattern"></div>
-                    <div class="container">
-                        <div class="hero-content">
-                            <div class="hero-badge">
-                                <span class="hero-badge-dot"></span>
-                                Industrial Technical Training
-                            </div>
-                            <h1 class="hero-title">Build <span class="hero-title-accent">Industry-Ready Skills.</span> Build Your Career.</h1>
-                            <p class="hero-desc">Gain practical industrial skills through expert-led training, hands-on learning, certification programs, and career-focused education.</p>
-                            <div class="hero-actions">
-                                <a href="#/courses" class="btn btn-secondary btn-lg" data-link>Explore Training Programs</a>
-                                <a href="#/contact" class="btn btn-outline-light btn-lg" data-link>Talk to an Expert</a>
-                            </div>
-                            <div class="hero-stats-row">
-                                <div>
-                                    <div class="hero-stat-value">10+</div>
-                                    <div class="hero-stat-label">Years Experience</div>
-                                </div>
-                                <div>
-                                    <div class="hero-stat-value">500+</div>
-                                    <div class="hero-stat-label">Students Trained</div>
-                                </div>
-                                <div>
-                                    <div class="hero-stat-value">25+</div>
-                                    <div class="hero-stat-label">Programs</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="hero-visual">
-                            <div class="hero-visual-card">
-                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCythYlnJpGxwRhHLon3XUJ-K4Wa05-lM4_FG6EdjnN0ksxHBdABnavkHz6BAtTljSNUov-9fxxzn2DUKf0DT9VCpx7BU7wV_yJnENjwcOSSY9UIrjTXkg7dwwanjdr6soUa-yHg9cezWv8a6B5a39TGTVJkU1d_IEl_ukUJxT9OxKZzAEpACRKrcNDRGLE9LqL54QurPhyVELLJL_cCRxlC928q_II-9q3JqjoDG4QBvgdipYW3SzQxA" alt="Student working with CNC machine in industrial training lab" loading="eager"/>
-                            </div>
-                            <div class="hero-visual-float hero-visual-float-1">
-                                <span class="material-symbols-outlined" style="color:var(--secondary);font-size:24px;">workspace_premium</span>
-                                <div>
-                                    <div style="font-family:var(--font-headline);font-size:14px;font-weight:700;color:var(--primary);">Certified Programs</div>
-                                    <div style="font-size:11px;color:var(--on-surface-variant);">Industry-Recognized</div>
-                                </div>
-                            </div>
-                            <div class="hero-visual-float hero-visual-float-2">
-                                <span class="material-symbols-outlined" style="color:var(--tertiary);font-size:24px;">engineering</span>
-                                <div>
-                                    <div style="font-family:var(--font-headline);font-size:14px;font-weight:700;color:var(--primary);">Hands-On Learning</div>
-                                    <div style="font-size:11px;color:var(--on-surface-variant);">Practical Training</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Trust Bar -->
-                <section class="trust-bar">
-                    <div class="trust-items">
-                        <div class="trust-item">
-                            <span class="material-symbols-outlined">schedule</span>
-                            <div>
-                                <div class="trust-item-value">10+</div>
-                                <div>Years Experience</div>
-                            </div>
-                        </div>
-                        <div class="trust-item">
-                            <span class="material-symbols-outlined">school</span>
-                            <div>
-                                <div class="trust-item-value">500+</div>
-                                <div>Students Trained</div>
-                            </div>
-                        </div>
-                        <div class="trust-item">
-                            <span class="material-symbols-outlined">menu_book</span>
-                            <div>
-                                <div class="trust-item-value">25+</div>
-                                <div>Programs</div>
-                            </div>
-                        </div>
-                        <div class="trust-item">
-                            <span class="material-symbols-outlined">workspace_premium</span>
-                            <div>
-                                <div class="trust-item-value">95%</div>
-                                <div>Satisfaction</div>
-                            </div>
-                        </div>
-                        <div class="trust-item">
-                            <span class="material-symbols-outlined">location_on</span>
-                            <div>
-                                <div class="trust-item-value">Gamharia</div>
-                                <div>Jamshedpur</div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Training Categories -->
-                <section class="section">
-                    <div class="container">
-                        <div class="section-header reveal">
-                            <div class="section-label">Our Domains</div>
-                            <h2 class="section-title">Training Built Around Real Industry Skills</h2>
-                            <p class="section-desc">Explore our comprehensive range of industrial training programs designed to make you job-ready.</p>
-                        </div>
-                        <div class="grid-4">
-                            <div class="category-card reveal reveal-delay-1" onclick="location.hash='#/courses'">
-                                <div class="category-card-icon"><span class="material-symbols-outlined">precision_manufacturing</span></div>
-                                <h3>CAD/CAM</h3>
-                                <p>AutoCAD, SolidWorks, CATIA, NX CAD</p>
-                                <div class="category-card-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
-                            </div>
-                            <div class="category-card reveal reveal-delay-2" onclick="location.hash='#/industrial-training'">
-                                <div class="category-card-icon"><span class="material-symbols-outlined">settings</span></div>
-                                <h3>CNC Programming</h3>
-                                <p>CNC, VMC, HMC Operations</p>
-                                <div class="category-card-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
-                            </div>
-                            <div class="category-card reveal reveal-delay-3" onclick="location.hash='#/industrial-training'">
-                                <div class="category-card-icon"><span class="material-symbols-outlined">build</span></div>
-                                <h3>Industrial Skills</h3>
-                                <p>Fabrication, Sheet Metal, Reverse Engineering</p>
-                                <div class="category-card-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
-                            </div>
-                            <div class="category-card reveal reveal-delay-4" onclick="location.hash='#/courses'">
-                                <div class="category-card-icon"><span class="material-symbols-outlined">computer</span></div>
-                                <h3>Computer Skills</h3>
-                                <p>MS Office, Tally, Programming</p>
-                                <div class="category-card-arrow"><span class="material-symbols-outlined">arrow_forward</span></div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Featured Courses -->
-                <section class="section" style="background:var(--surface-container-low);">
-                    <div class="container">
-                        <div class="section-header reveal">
-                            <div class="section-label">Most Popular</div>
-                            <h2 class="section-title">Featured Courses</h2>
-                            <p class="section-desc">Discover our most sought-after programs trusted by hundreds of students.</p>
-                        </div>
-                        <div class="grid-3">
-                            ${featuredHtml}
-                        </div>
-                        <div style="text-align:center;margin-top:var(--space-xl);" class="reveal">
-                            <a href="#/courses" class="btn btn-primary" data-link>View All Courses <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span></a>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Learning Journey -->
-                <section class="section">
-                    <div class="container">
-                        <div class="section-header reveal" style="text-align:center;">
-                            <div class="section-label" style="justify-content:center;">Your Path</div>
-                            <h2 class="section-title">The Learning Journey</h2>
-                            <p class="section-desc" style="margin-left:auto;margin-right:auto;">A structured path from learning to career growth.</p>
-                        </div>
-                        <div class="journey-timeline reveal">
-                            <div class="journey-step">
-                                <span class="material-symbols-outlined">menu_book</span>
-                                <div class="journey-step-number">01</div>
-                                <div class="journey-step-line"></div>
-                                <h3>Learn</h3>
-                                <p>Understand fundamentals from expert trainers</p>
-                            </div>
-                            <div class="journey-step">
-                                <span class="material-symbols-outlined">science</span>
-                                <div class="journey-step-number">02</div>
-                                <div class="journey-step-line"></div>
-                                <h3>Practice</h3>
-                                <p>Work with industry-standard tools and equipment</p>
-                            </div>
-                            <div class="journey-step">
-                                <span class="material-symbols-outlined">construction</span>
-                                <div class="journey-step-number">03</div>
-                                <div class="journey-step-line"></div>
-                                <h3>Build</h3>
-                                <p>Complete real-world industrial projects</p>
-                            </div>
-                            <div class="journey-step">
-                                <span class="material-symbols-outlined">workspace_premium</span>
-                                <div class="journey-step-number">04</div>
-                                <div class="journey-step-line"></div>
-                                <h3>Certify</h3>
-                                <p>Earn industry-recognized certification</p>
-                            </div>
-                            <div class="journey-step">
-                                <span class="material-symbols-outlined">trending_up</span>
-                                <div class="journey-step-number">05</div>
-                                <h3>Grow</h3>
-                                <p>Advance your career with new skills</p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Why Choose Us -->
-                <section class="section" style="background:var(--surface-container-low);">
-                    <div class="container">
-                        <div class="section-header reveal">
-                            <div class="section-label">Why Us</div>
-                            <h2 class="section-title">Why Professionals Choose Our Training</h2>
-                            <p class="section-desc">We combine industry expertise with practical learning to deliver real career outcomes.</p>
-                        </div>
-                        <div class="grid-2">
-                            <div class="why-card reveal reveal-delay-1">
-                                <div class="why-card-icon"><span class="material-symbols-outlined">precision_manufacturing</span></div>
-                                <div><h3>Industry-Oriented Curriculum</h3><p>Training designed around practical industry requirements, not just theory.</p></div>
-                            </div>
-                            <div class="why-card reveal reveal-delay-2">
-                                <div class="why-card-icon"><span class="material-symbols-outlined">build</span></div>
-                                <div><h3>Hands-On Learning</h3><p>Focus on practical implementation with real equipment and software.</p></div>
-                            </div>
-                            <div class="why-card reveal reveal-delay-3">
-                                <div class="why-card-icon"><span class="material-symbols-outlined">groups</span></div>
-                                <div><h3>Experienced Trainers</h3><p>Learn from instructors with real-world manufacturing and design expertise.</p></div>
-                            </div>
-                            <div class="why-card reveal reveal-delay-4">
-                                <div class="why-card-icon"><span class="material-symbols-outlined">workspace_premium</span></div>
-                                <div><h3>Industry Certification</h3><p>Build credible proof of your skills that employers recognize.</p></div>
-                            </div>
-                            <div class="why-card reveal reveal-delay-1">
-                                <div class="why-card-icon"><span class="material-symbols-outlined">trending_up</span></div>
-                                <div><h3>Career Focus</h3><p>Training aligned with employment opportunities and professional growth.</p></div>
-                            </div>
-                            <div class="why-card reveal reveal-delay-2">
-                                <div class="why-card-icon"><span class="material-symbols-outlined">schedule</span></div>
-                                <div><h3>Flexible Learning</h3><p>Batch timings designed for students and working professionals.</p></div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Industry Connection -->
-                <section class="section">
-                    <div class="container" style="text-align:center;">
-                        <div class="section-header reveal" style="text-align:center;">
-                            <div class="section-label" style="justify-content:center;">Industry Aligned</div>
-                            <h2 class="section-title">Training Aligned With Industry Requirements</h2>
-                            <p class="section-desc" style="margin-left:auto;margin-right:auto;">Our programs connect education with real industrial sectors and technologies.</p>
-                        </div>
-                        <div class="industry-tags reveal">
-                            <div class="industry-tag"><span class="material-symbols-outlined">precision_manufacturing</span> Manufacturing</div>
-                            <div class="industry-tag"><span class="material-symbols-outlined">engineering</span> Engineering</div>
-                            <div class="industry-tag"><span class="material-symbols-outlined">directions_car</span> Automotive</div>
-                            <div class="industry-tag"><span class="material-symbols-outlined">domain</span> Construction</div>
-                            <div class="industry-tag"><span class="material-symbols-outlined">computer</span> IT & Design</div>
-                            <div class="industry-tag"><span class="material-symbols-outlined">settings</span> Automation</div>
-                            <div class="industry-tag"><span class="material-symbols-outlined">flight</span> Aerospace</div>
-                            <div class="industry-tag"><span class="material-symbols-outlined">electric_bolt</span> Electrical</div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Testimonials -->
-                <section class="section" style="background:var(--surface-container-low);">
-                    <div class="container">
-                        <div class="section-header reveal">
-                            <div class="section-label">Testimonials</div>
-                            <h2 class="section-title">What Our Students Say</h2>
-                            <p class="section-desc">Real stories from students who transformed their careers.</p>
-                        </div>
-                        <div class="grid-3">
-                            ${testimonialHtml}
-                        </div>
-                    </div>
-                </section>
-
-                <!-- FAQs -->
-                <section class="section">
-                    <div class="container" style="max-width:800px;">
-                        <div class="section-header reveal" style="text-align:center;">
-                            <div class="section-label" style="justify-content:center;">FAQs</div>
-                            <h2 class="section-title">Frequently Asked Questions</h2>
-                            <p class="section-desc" style="margin-left:auto;margin-right:auto;">Answers to common questions about our programs.</p>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:0;margin-top:var(--space-lg);">
-                            ${faqHtml}
-                        </div>
-                    </div>
-                </section>
-
-                <!-- CTA Section -->
-                <section class="cta-section">
-                    <div class="container">
-                        <div class="cta-inner">
-                            <h2 class="section-title">Ready to Build Your Industry-Ready Skills?</h2>
-                            <p class="section-desc">Choose the right training program and take the next step toward your professional goals.</p>
-                            <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:var(--space-lg);">
-                                <a href="#/courses" class="btn btn-secondary btn-lg" data-link>Explore Courses</a>
-                                <a href="#/contact" class="btn btn-outline-light btn-lg" data-link>Contact Us</a>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            `;
-            initFAQ();
-            initScrollReveal();
-        },
-
-        /* ---- COURSES ---- */
-        async courses() {
-            const courses = await DataStore.fetchCourses();
-            const fallbackImg = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBLj2Kf6ZGZV8LDP7C5AUQhYyWTGQ1WeyyNvZFpLFeB0pg6JYPV3k4axq4Ov1HnzPxEJ-FVySO3WtGfEkn5X2Lz63LbxAPlIqis9wbqsc0X9KSbPH8_ElkwjUO0nN2JvbeTBLW09tgZE3MFpUOQclq7n3KmOl9szN7KTLtDK3XzfNJsofgblkdEVC6kipAg5I7dFDxfMRqYEQR9pjl0HvMha6kom_xDZs5ArfZ0ocyXa6XPDTILWon7WQ';
-            const gridHtml = courses.length
-                ? courses.map(c => Pages._courseCard(c.title, c.category_slug || 'cad-cam', c.short_description || c.description?.substring(0,120) || '', [c.duration || '6 Weeks', c.level || 'Beginner'].filter(Boolean), c.image || fallbackImg)).join('')
-                : ['AutoCAD Masterclass','SolidWorks Professional','CNC/VMC Programming','CATIA Aerospace Design','NX CAD Design','Industrial Automation'].map((t,i) => Pages._courseCard(t, i<4?'cad-cam':i===4?'cad-cam':'industrial', 'Comprehensive hands-on training program.', ['Hands-on','Certified'], fallbackImg)).join('');
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <div class="container" style="padding-top:var(--space-section);padding-bottom:var(--space-section);">
-                    <div class="page-header">
-                        <h1>Our Courses</h1>
-                        <p>Industry-standard CAD/CAM, CNC, and technical skill development programs</p>
-                    </div>
-                    <div class="courses-layout">
-                        <!-- Sidebar -->
-                        <aside class="courses-sidebar">
-                            <div class="sidebar-card">
-                                <label class="filter-label">Search Courses</label>
-                                <div class="search-input-wrapper">
-                                    <span class="material-symbols-outlined">search</span>
-                                    <input type="text" class="form-input course-search-input" placeholder="Enter keyword..." style="padding-left:40px;"/>
-                                </div>
-                            </div>
-                            <div class="sidebar-card">
-                                <label class="filter-label">Categories</label>
-                                <div class="filter-group">
-                                    <label class="filter-item"><input type="checkbox" class="category-filter" data-category="all" checked/> All Courses</label>
-                                    <label class="filter-item"><input type="checkbox" class="category-filter" data-category="cad-cam"/> CAD/CAM</label>
-                                    <label class="filter-item"><input type="checkbox" class="category-filter" data-category="cnc"/> CNC</label>
-                                    <label class="filter-item"><input type="checkbox" class="category-filter" data-category="industrial"/> Industrial</label>
-                                </div>
-                            </div>
-                            <div class="lead-magnet-card">
-                                <span class="material-symbols-outlined" style="font-size:40px;color:var(--secondary-fixed);margin-bottom:12px;">description</span>
-                                <h3>Download Brochure</h3>
-                                <p>Get complete details on curriculum, duration, and fees.</p>
-                                <button class="btn btn-green btn-full" style="margin-top:16px;" onclick="showToast('Brochure download coming soon!')">Get PDF</button>
-                            </div>
-                            <div class="counselling-card">
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                    <span class="material-symbols-outlined" style="color:var(--secondary);">support_agent</span>
-                                    <h3>Free Counselling</h3>
-                                </div>
-                                <p>Not sure which path? Speak to our experts.</p>
-                                <button class="btn btn-outline btn-full" onclick="openEnquiryModal()">Book Call</button>
-                            </div>
-                        </aside>
-
-                        <!-- Course Grid -->
-                        <div class="courses-grid">
-                            ${gridHtml}
-                        </div>
-                    </div>
-                </div>
-            `;
-            initCourseFilter();
-            initScrollReveal();
-        },
-
-        _courseCard(title, category, desc, tags, img) {
-            const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            const catLabel = category === 'cad-cam' ? 'CAD/CAM' : category === 'cnc' ? 'CNC' : 'Industrial';
-            const tagHtml = tags.map(t => `<span class="course-tag">${t}</span>`).join('');
-            const accentColor = category === 'cnc' ? 'var(--primary)' : category === 'industrial' ? 'var(--tertiary-container)' : 'var(--secondary)';
-            return `
-                <div class="course-card course-filter-card reveal" data-title="${title}" data-category="${category}" style="--card-accent:${accentColor};">
-                    <div class="course-card-image">
-                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='250'%3E%3Crect fill='%23f1f3f5' width='400' height='250'/%3E%3C/svg%3E" data-src="${img}" alt="${title}" loading="lazy" decoding="async" class="lazy-img"/>
-                        <span class="course-card-badge" style="background:${accentColor};color:${category === 'cnc' ? 'var(--on-primary)' : 'var(--on-primary)'};">${catLabel}</span>
-                        <div class="course-card-image-overlay"></div>
-                    </div>
-                    <div class="course-card-body">
-                        <h3 class="course-card-title">${title}</h3>
-                        <p class="course-card-desc">${desc}</p>
-                        <div class="course-card-tags">${tagHtml}</div>
-                        <div class="course-card-meta">
-                            <div class="course-meta-item">
-                                <span class="material-symbols-outlined">schedule</span> ${tags[0] || '6 Weeks'}
-                            </div>
-                            <div class="course-meta-item">
-                                <span class="material-symbols-outlined">signal_cellular_alt</span> ${tags[1] || 'Beginner'}
-                            </div>
-                            <div class="course-meta-item">
-                                <span class="material-symbols-outlined">location_on</span> In-Person
-                            </div>
-                        </div>
-                        <div class="course-card-actions">
-                            <a href="#/courses/${slug}" class="btn btn-primary btn-sm" data-link style="flex:1;">View Details</a>
-                            <button class="btn btn-outline btn-sm" style="flex:1;" onclick="event.stopPropagation();openEnquiryModal()">Enquire</button>
-                        </div>
-                    </div>
-                </div>`;
-        },
-
-        /* ---- COURSE DETAIL ---- */
-        async courseDetail(params) {
-            const app = document.getElementById('app');
-            const slug = params.slug || 'solidworks-professional';
-            let courseData = Pages._getCourseData(slug);
-            try {
-                const res = await fetch(`${API_BASE}/api/courses/${slug}`);
-                if (res.ok) { const j = await res.json(); if (j.data) courseData = { title: j.data.title, category: j.data.category || 'CAD/CAM', shortDesc: j.data.short_description || j.data.description?.substring(0,150) || '', desc: j.data.description || '', duration: j.data.duration || '6 Weeks', level: j.data.level || 'Beginner', fees: j.data.fees || 'Contact Us', mode: j.data.mode || 'In-Person', image: j.data.image }; }
-            } catch(e) {}
-
-            app.innerHTML = `
-                <section class="course-hero">
-                    <div class="blueprint-grid" style="position:absolute;inset:0;opacity:0.5;z-index:0;"></div>
-                    <div class="container">
-                        <div class="course-hero-grid" style="position:relative;z-index:10;">
-                            <div style="display:flex;flex-direction:column;gap:var(--space-lg);">
-                                <div style="display:flex;align-items:center;gap:12px;">
-                                    <span class="badge badge-primary">${courseData.category}</span>
-                                    <span style="font-family:var(--font-label);font-size:12px;color:var(--secondary);display:flex;align-items:center;gap:4px;">
-                                        <span class="material-symbols-outlined" style="font-size:16px;">verified</span> Industry Certified
-                                    </span>
-                                </div>
-                                <h1 class="font-display-lg-mobile" style="font-family:var(--font-display);font-size:var(--text-display-lg-mobile);line-height:var(--lh-display-mobile);font-weight:700;color:var(--primary);">${courseData.title}</h1>
-                                <p style="font-size:var(--text-body-lg);line-height:var(--lh-body-lg);color:var(--on-surface-variant);max-width:600px;">${courseData.shortDesc}</p>
-                                <div class="course-meta-grid">
-                                    <div class="course-meta-item"><span class="course-meta-label">Duration</span><span class="course-meta-value">${courseData.duration}</span></div>
-                                    <div class="course-meta-item"><span class="course-meta-label">Level</span><span class="course-meta-value">${courseData.level}</span></div>
-                                    <div class="course-meta-item"><span class="course-meta-label">Format</span><span class="course-meta-value">${courseData.format}</span></div>
-                                    <div class="course-meta-item"><span class="course-meta-label">Batch</span><span class="course-meta-value">${courseData.batch}</span></div>
-                                </div>
-                                <div style="display:flex;gap:16px;flex-wrap:wrap;padding-top:8px;">
-                                    <button class="btn btn-primary" onclick="showToast('Brochure download coming soon!')">Download Syllabus <span class="material-symbols-outlined" style="font-size:18px;">download</span></button>
-                                    <button class="btn btn-outline" onclick="openEnquiryModal()">Request Demo</button>
-                                </div>
-                            </div>
-                            <div style="position:relative;margin-top:48px;">
-                                <div style="position:absolute;inset:-16px;background:var(--tertiary-fixed);opacity:0.2;border-radius:8px;transform:rotate(2deg);"></div>
-                                <div style="background:var(--surface-container-lowest);border:1px solid var(--outline-variant);padding:8px;border-radius:8px;position:relative;z-index:10;box-shadow:var(--shadow-card);">
-                                    <div class="lazy-bg" data-bg="${courseData.image||''}" style="background-size:cover;background-position:center;width:100%;aspect-ratio:16/9;border-radius:4px;border:1px solid var(--outline-variant);"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section style="padding:var(--space-section) 0;background:var(--surface-bright);">
-                    <div class="container">
-                        <div class="course-detail-layout">
-                            <div class="course-content" style="display:flex;flex-direction:column;gap:var(--space-section);">
-                                <div style="display:flex;flex-direction:column;gap:var(--space-md);">
-                                    <h2><span class="material-symbols-outlined" style="color:var(--secondary);">info</span> Course Overview</h2>
-                                    <p>${courseData.overview}</p>
-                                </div>
-
-                                <div style="display:flex;flex-direction:column;gap:var(--space-md);">
-                                    <h2><span class="material-symbols-outlined" style="color:var(--secondary);">menu_book</span> Curriculum Highlights</h2>
-                                    <div class="curriculum-grid">
-                                        ${courseData.curriculum.map(c => `
-                                            <div class="curriculum-card">
-                                                <span class="material-symbols-outlined" style="font-size:32px;color:var(--primary);margin-bottom:12px;">${c.icon}</span>
-                                                <h3>${c.title}</h3>
-                                                <p>${c.desc}</p>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                </div>
-
-                                <div class="career-section">
-                                    <h2 style="font-family:var(--font-headline);font-size:var(--text-headline-md);color:var(--primary);display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                                        <span class="material-symbols-outlined" style="color:var(--secondary);">work</span> Career Pathways
-                                    </h2>
-                                    <p style="color:var(--on-surface-variant);margin-bottom:16px;">${courseData.career}</p>
-                                    <div class="career-tags">
-                                        ${courseData.careerTags.map(t => `<span class="career-tag">${t}</span>`).join('')}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="course-sidebar">
-                                <div class="fee-card">
-                                    <div class="fee-label">Course Investment</div>
-                                    <div class="fee-amount">Call for Details</div>
-                                    <div style="border-bottom:1px solid var(--outline-variant);margin:16px 0;"></div>
-                                    <ul class="fee-list">
-                                        <li class="fee-list-item"><span class="material-symbols-outlined">check_circle</span> Includes Certification</li>
-                                        <li class="fee-list-item"><span class="material-symbols-outlined">check_circle</span> 1-on-1 Mentorship Sessions</li>
-                                        <li class="fee-list-item"><span class="material-symbols-outlined">check_circle</span> Lifetime Access to Resources</li>
-                                    </ul>
-                                    <button class="btn btn-primary btn-full" onclick="openEnquiryModal()">Enrol Now</button>
-                                    <button class="btn btn-outline btn-full" style="margin-top:8px;" onclick="openEnquiryModal()">
-                                        <span class="material-symbols-outlined" style="font-size:18px;">call</span> Request Callback
-                                    </button>
-                                </div>
-
-                                <div class="enquiry-card">
-                                    <h3><span class="material-symbols-outlined">mail</span> Quick Enquiry</h3>
-                                    <form class="course-enquiry-form" style="display:flex;flex-direction:column;gap:12px;" onsubmit="submitCourseEnquiry(event, '${courseData.title}')">
-                                        <div class="form-group"><label class="form-label">Full Name</label><input type="text" name="name" class="form-input" placeholder="John Doe" required/></div>
-                                        <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-input" placeholder="john@example.com"/></div>
-                                        <div class="form-group"><label class="form-label">Phone</label><input type="tel" name="phone" class="form-input" placeholder="+91 00000 00000" required/></div>
-                                        <button type="submit" class="btn btn-secondary btn-full">Submit Enquiry</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            `;
-        },
-
-        _getCourseData(slug) {
-            const courses = {
-                'autocad-masterclass': {
-                    title: 'AutoCAD Masterclass', category: 'CAD/CAM', shortDesc: 'Comprehensive training in 2D drafting and 3D modeling for mechanical and civil engineering applications.',
-                    duration: '8 Weeks', level: 'Beginner', format: 'In-Person', batch: 'Rolling',
-                    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBLj2Kf6ZGZV8LDP7C5AUQhYyWTGQ1WeyyNvZFpLFeB0pg6JYPV3k4axq4Ov1HnzPxEJ-FVySO3WtGfEkn5X2Lz63LbxAPlIqis9wbqsc0X9KSbPH8_ElkwjUO0nN2JvbeTBLW09tgZE3MFpUOQclq7n3KmOl9szN7KTLtDK3XzfNJsofgblkdEVC6kipAg5I7dFDxfMRqYEQR9pjl0HvMha6kom_xDZs5ArfZ0ocyXa6XPDTILWon7WQ',
-                    overview: 'The AutoCAD Masterclass provides comprehensive training in industry-standard 2D drafting and 3D modeling. Students learn to create precise technical drawings, generate 3D models, and produce professional documentation.',
-                    curriculum: [{icon:'draw',title:'2D Drafting',desc:'Master layers, blocks, dimensions, and annotation.'},{icon:'view_in_ar',title:'3D Modeling',desc:'Create 3D solids, surfaces, and mesh objects.'},{icon:'palette',title:'Rendering',desc:'Generate photorealistic renders and presentations.'},{icon:'description',title:'Documentation',desc:'Prepare production-ready drawings and layouts.'}],
-                    career: 'Proficiency in AutoCAD opens doors to careers in architecture, civil engineering, mechanical design, and interior design.',
-                    careerTags: ['CAD Draughtsman','Design Engineer','Architecture Assistant','Interior Designer']
-                },
-                'solidworks-professional': {
-                    title: 'SolidWorks Professional', category: 'CAD/CAM', shortDesc: 'Master advanced 3D parametric design, complex assembly modeling, and engineering drawings.',
-                    duration: '12 Weeks', level: 'Intermediate', format: 'Hybrid', batch: 'Rolling',
-                    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAUEcOJIvpM1N3s9EtbS36uUfpUrp0qDbTKybdcQ4TvT5L-6WwKkSIB7ZJaLq_tH5Ts2vuUzgkEp0gsiJe3h9BGpLZPKjbi7Fyg8ZUs6NoRlDRCFbe53zXS3nyJ2RC-uWqg8ORxNZ0u188WLUbrjIt-pRBD44Mn192Ef8gxR4yj0eeQMEVFsU5j66vY4qdSVbF3nTIfsWhcCLFmHvLyiHLZRXJs3D4V4Xb3Xh0EKyu7MeWmLaFW_AI9ng',
-                    overview: 'The SolidWorks Professional course is designed for individuals who have a foundational understanding of 3D CAD and wish to elevate their skills to an industry-standard level. This intensive program covers advanced part modeling, complex surface creation, and intricate assembly design techniques.',
-                    curriculum: [{icon:'precision_manufacturing',title:'Advanced Part Modeling',desc:'Master multi-body solids, sweeps, lofts, and advanced shaping techniques.'},{icon:'account_tree',title:'Complex Assemblies',desc:'Manage large assembly performance and create top-down design structures.'},{icon:'architecture',title:'Sheet Metal & Weldments',desc:'Design industry-standard sheet metal parts and generate flat patterns.'},{icon:'analytics',title:'Simulation Basics',desc:'Introduction to static analysis, stress, strain, and displacement.'}],
-                    career: 'Proficiency in SolidWorks is a highly sought-after skill in manufacturing, automotive, aerospace, and product design sectors.',
-                    careerTags: ['Mechanical Design Engineer','CAD Draftsman','Product Development Specialist','Tooling Engineer']
-                },
-                'cnc-vmc-programming': {
-                    title: 'CNC/VMC Programming', category: 'CNC', shortDesc: 'Hands-on G-code and M-code programming for advanced Vertical Machining Centers.',
-                    duration: '10 Weeks', level: 'Intermediate', format: 'In-Person', batch: 'Monthly',
-                    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6zw1FYrzMP34yVaZOjU7ggUYyO7pg_c_YuHKoagvM3msiXT-g_mh5s-xv9ZaA0Y04_bNPkouwOJnk71NYK75C3ec0NwJyUNgOmuGPpGSCk0ANBPihmym80hg9DsexWLGNuw7J0UoG7ISiymUw-Xo-kkNCSZNG31Q7ftft8O3DOvjVKCrCIdkABfwiDDmnDYd82YjkigsM6QpmeZOLs1xRg9j_XTdQqLZ8lc_vuu3uCFOH4qhOd8jOkQ',
-                    overview: 'This course provides hands-on training in CNC and VMC operations, covering G-code and M-code programming, tool path generation, and machine setup procedures for modern manufacturing.',
-                    curriculum: [{icon:'code',title:'G-Code Programming',desc:'Master CNC programming language and syntax.'},{icon:'settings',title:'VMC Operations',desc:'Learn Vertical Machining Center setup and operation.'},{icon:'precision_manufacturing',title:'Tool Selection',desc:'Understand cutting tools, speeds, feeds, and optimization.'},{icon:'analytics',title:'Quality Control',desc:'Measure and verify dimensional accuracy of machined parts.'}],
-                    career: 'CNC programmers and operators are in high demand across automotive, aerospace, and general manufacturing industries.',
-                    careerTags: ['CNC Programmer','VMC Operator','Tooling Engineer','Production Engineer']
-                },
-                'catia-aerospace-design': {
-                    title: 'CATIA Aerospace Design', category: 'CAD/CAM', shortDesc: 'Industry-standard surface modeling and complex assembly design for automotive and aerospace.',
-                    duration: '14 Weeks', level: 'Advanced', format: 'Hybrid', batch: 'Rolling',
-                    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBjSNNFtUi4Le_7WgBc4DYtrFeL7SG0-mTi77YzIB1XN3T_p2t3t-JRCPj6mcptifBbZEFRjn0_yNdABqp61pLJclvaYlJMRtB7PFzbi6fi_xlKPcCbVq-msQJ6Akco6frgiXoY4Y8YjHvhwk0OaZ1Fh6L7oQJYZBrsyHis98un_MSnbsVpANaMRNpmzoqwCHzYkxEug1sM4JxaoneWlxzNDTV26P8ieT2sejv9UERan89HYwnoPlw1Nw',
-                    overview: 'CATIA V5 is the leading CAD/CAM software in aerospace and automotive industries. This course covers advanced surface modeling, complex assembly design, and industry-specific workflows.',
-                    curriculum: [{icon:'view_in_ar',title:'Surface Modeling',desc:'Create complex A-class and B-class surfaces.'},{icon:'flight',title:'Aerospace Assembly',desc:'Design multi-component aircraft assemblies.'},{icon:'architecture',title:'Generative Design',desc:'Use generative shape design for organic forms.'},{icon:'description',title:'Drawing Generation',desc:'Create manufacturing-ready engineering drawings.'}],
-                    career: 'CATIA expertise is essential for aerospace engineers, automotive designers, and advanced manufacturing professionals.',
-                    careerTags: ['Aerospace Designer','Automotive CAD Engineer','Surface Modeler','CATIA Specialist']
-                },
-                'nx-cad-design': {
-                    title: 'NX CAD Design', category: 'CAD/CAM', shortDesc: 'Industry-grade parametric and surface modeling with Siemens NX for advanced manufacturing.',
-                    duration: '12 Weeks', level: 'Advanced', format: 'Hybrid', batch: 'Rolling',
-                    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBjSNNFtUi4Le_7WgBc4DYtrFeL7SG0-mTi77YzIB1XN3T_p2t3t-JRCPj6mcptifBbZEFRjn0_yNdABqp61pLJclvaYlJMRtB7PFzbi6fi_xlKPcCbVq-msQJ6Akco6frgiXoY4Y8YjHvhwk0OaZ1Fh6L7oQJYZBrsyHis98un_MSnbsVpANaMRNpmzoqwCHzYkxEug1sM4JxaoneWlxzNDTV26P8ieT2sejv9UERan89HYwnoPlw1Nw',
-                    overview: 'Siemens NX is a leading CAD/CAM/CAE solution for product design and manufacturing. This course covers advanced parametric modeling, surface design, assembly management, and drafting within the NX environment.',
-                    curriculum: [{icon:'precision_manufacturing',title:'Parametric Modeling',desc:'Create robust parametric parts using advanced feature-based modeling.'},{icon:'view_in_ar',title:'Surface Design',desc:'Master surface modeling techniques for complex geometries.'},{icon:'account_tree',title:'Assembly Design',desc:'Build and manage large-scale assemblies with top-down approaches.'},{icon:'description',title:'Drafting & Documentation',desc:'Generate production-ready 2D drawings from 3D models.'}],
-                    career: 'NX CAD expertise is highly valued in automotive, aerospace, heavy machinery, and consumer product industries.',
-                    careerTags: ['NX CAD Engineer','Design Specialist','Product Designer','Manufacturing Engineer']
-                },
-                'industrial-automation': {
-                    title: 'Industrial Automation', category: 'Industrial', shortDesc: 'PLC programming, SCADA systems, and industrial electronics for modern smart factories.',
-                    duration: '10 Weeks', level: 'Intermediate', format: 'In-Person', batch: 'Monthly',
-                    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAC_4z3HyHv-lMeeYlR7UKdaIdR2jUTq5iZFOgwHVZoBjKjajfHFESGtTno5jvvrBmk-SxWr4nHnqqTGl3UTNi1r_WioRmmSA0JlmIsxy2DOwgsSjTxPM-krX9gRHNFpevqENkM1fUyVSo4MvbkmQuCE2IRM4Z9t1N-oJ7t87cA6UMr3CtvOPIljsZTXpKi3yav96wOeSVjAlTGlRgro8oZuOg2StoN3_7fzDqexDs2OjGjV5_OKRVydw',
-                    overview: 'This course provides comprehensive training in industrial automation including PLC programming (Siemens, Allen-Bradley), SCADA system design, HMI development, and industrial communication protocols used in modern smart factories.',
-                    curriculum: [{icon:'electrical_services',title:'PLC Programming',desc:'Master ladder logic, function blocks, and structured text for Siemens and Allen-Bradley PLCs.'},{icon:'monitor',title:'SCADA Systems',desc:'Design and configure supervisory control and data acquisition systems.'},{icon:'settings',title:'HMI Development',desc:'Create intuitive human-machine interface screens for industrial processes.'},{icon:'cell_tower',title:'Industrial Networking',desc:'Understand Profinet, Modbus, Ethernet/IP, and other industrial protocols.'}],
-                    career: 'Industrial automation engineers are in high demand across manufacturing, oil & gas, power plants, and process industries.',
-                    careerTags: ['Automation Engineer','PLC Programmer','SCADA Engineer','Controls Technician']
-                },
-            };
-            return courses[slug] || courses['solidworks-professional'];
-        },
-
-        /* ---- INDUSTRIAL TRAINING ---- */
-        industrialTraining() {
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <div class="container" style="padding-top:var(--space-section);padding-bottom:var(--space-section);">
-                    <!-- Hero -->
-                    <section class="training-hero" style="margin-bottom:var(--space-section);">
-                        <div class="blueprint-grid" style="position:absolute;inset:0;opacity:0.5;z-index:0;"></div>
-                        <div class="training-hero-grid">
-                            <div style="display:flex;flex-direction:column;justify-content:center;gap:var(--space-md);">
-                                <div class="section-label"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">precision_manufacturing</span> Advanced Industrial Training</div>
-                                <h1 class="font-display-lg-mobile" style="font-family:var(--font-display);font-size:var(--text-display-lg-mobile);line-height:var(--lh-display-mobile);font-weight:700;color:var(--primary);">Engineer Your Career in Modern Manufacturing</h1>
-                                <p style="font-size:var(--text-body-lg);line-height:var(--lh-body-lg);color:var(--on-surface-variant);max-width:550px;">Master technical precision with industry-grade curriculum focusing on Fabrication Drawing, Reverse Engineering, Sheet Metal Design, and Advanced CNC Operations.</p>
-                                <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                                    <button class="btn btn-primary" onclick="document.querySelector('.section').scrollIntoView({behavior:'smooth'})">Explore Curriculum</button>
-                                    <button class="btn btn-outline" onclick="showToast('Brochure download coming soon!')">Download Brochure</button>
-                                </div>
-                            </div>
-                            <div class="training-hero-image">
-                                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400'%3E%3Crect fill='%23f1f3f5' width='600' height='400'/%3E%3C/svg%3E" data-src="https://lh3.googleusercontent.com/aida-public/AB6AXuAC_4z3HyHv-lMeeYlR7UKdaIdR2jUTq5iZFOgwHVZoBjKjajfHFESGtTno5jvvrBmk-SxWr4nHnqqTGl3UTNi1r_WioRmmSA0JlmIsxy2DOwgsSjTxPM-krX9gRHNFpevqENkM1fUyVSo4MvbkmQuCE2IRM4Z9t1N-oJ7t87cA6UMr3CtvOPIljsZTXpKi3yav96wOeSVjAlTGlRgro8oZuOg2StoN3_7fzDqexDs2OjGjV5_OKRVydw" alt="CNC Training" loading="lazy" decoding="async" class="lazy-img" style="width:100%;height:100%;object-fit:cover;"/>
-                                <div style="position:absolute;top:16px;left:16px;background:rgba(251,248,252,0.9);backdrop-filter:blur(8px);border:1px solid var(--outline-variant);padding:8px 12px;border-radius:var(--radius-sm);font-family:var(--font-label);font-size:12px;color:var(--primary);display:flex;align-items:center;gap:8px;">
-                                    <span style="width:8px;height:8px;border-radius:50%;background:var(--secondary-fixed);animation:pulse 2s infinite;"></span>
-                                    SYSTEM ONLINE
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Disciplines -->
-                    <section style="margin-bottom:var(--space-section);">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">precision_manufacturing</span> Core Disciplines
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">Core Disciplines</h2>
-                        </div>
-                        <div class="grid-2">
-                            <div class="discipline-card" style="grid-column:span 2;">
-                                <span class="badge badge-outline" style="margin-bottom:12px;">Drafting</span>
-                                <h3 style="color:var(--primary);">Fabrication Drawing</h3>
-                                <p>Master industry-standard blueprint reading, GD&T, and creation of complex assembly diagrams for heavy machinery and structural components.</p>
-                            </div>
-                            <div class="discipline-card discipline-card-dark">
-                                <span class="badge" style="margin-bottom:12px;">Operations</span>
-                                <h3>Advanced CNC Operations</h3>
-                                <p>Hands-on programming and operation of multi-axis milling and turning centers using latest G-code standards.</p>
-                                <button style="color:var(--tertiary-fixed);font-family:var(--font-button);font-size:var(--text-button);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-top:16px;background:none;border:none;cursor:pointer;">View Module <span class="material-symbols-outlined" style="font-size:16px;">arrow_forward</span></button>
-                            </div>
-                            <div class="discipline-card">
-                                <span class="badge badge-outline" style="margin-bottom:12px;">Analysis</span>
-                                <h3 style="color:var(--primary);">Reverse Engineering</h3>
-                                <p>Utilize 3D laser scanning and metrology tools to reconstruct CAD models from physical prototypes.</p>
-                            </div>
-                            <div class="discipline-card" style="display:flex;gap:var(--space-gutter);align-items:center;flex-wrap:wrap;">
-                                <div style="flex:1;min-width:200px;">
-                                    <span class="badge badge-outline" style="margin-bottom:12px;">Design</span>
-                                    <h3 style="color:var(--primary);margin-bottom:8px;">Sheet Metal Design</h3>
-                                    <p style="margin-bottom:12px;">Advanced CAD modeling for bend allowances, K-factors, and flat pattern generation.</p>
-                                    <ul style="display:flex;flex-direction:column;gap:4px;">
-                                        <li style="display:flex;align-items:center;gap:8px;font-family:var(--font-label);font-size:12px;color:var(--on-surface-variant);"><span class="material-symbols-outlined" style="font-size:14px;color:var(--secondary-fixed);">check_circle</span> Formability Analysis</li>
-                                        <li style="display:flex;align-items:center;gap:8px;font-family:var(--font-label);font-size:12px;color:var(--on-surface-variant);"><span class="material-symbols-outlined" style="font-size:14px;color:var(--secondary-fixed);">check_circle</span> Weldment Detailing</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Why Section -->
-                    <section style="padding:var(--space-lg);border:1px solid var(--outline-variant);border-radius:var(--radius-xl);background:var(--surface-container);margin-bottom:var(--space-section);">
-                        <div style="display:grid;grid-template-columns:1fr;gap:var(--space-gutter);align-items:center;">
-                            <div>
-                                <h2 class="font-headline-md" style="font-family:var(--font-headline);font-size:var(--text-headline-md);color:var(--primary);margin-bottom:16px;">Why Industry-Ready Training?</h2>
-                                <p style="color:var(--on-surface-variant);margin-bottom:24px;font-size:18px;">The gap between academic theory and shop-floor reality is significant. Our curriculum is developed in partnership with leading manufacturing firms.</p>
-                                <div style="display:flex;flex-direction:column;gap:16px;">
-                                    <div style="background:var(--surface-container-lowest);padding:16px;border:1px solid var(--outline-variant);border-radius:var(--radius-md);display:flex;gap:16px;align-items:flex-start;">
-                                        <span class="material-symbols-outlined" style="background:rgba(0,8,30,0.1);padding:8px;border-radius:var(--radius-md);">factory</span>
-                                        <div><h4 style="font-weight:700;color:var(--primary);">Shop-Floor Simulation</h4><p style="font-size:14px;color:var(--on-surface-variant);margin-top:4px;">Training in environments mirroring modern production facilities.</p></div>
-                                    </div>
-                                    <div style="background:var(--surface-container-lowest);padding:16px;border:1px solid var(--outline-variant);border-radius:var(--radius-md);display:flex;gap:16px;align-items:flex-start;">
-                                        <span class="material-symbols-outlined" style="background:rgba(0,8,30,0.1);padding:8px;border-radius:var(--radius-md);">verified</span>
-                                        <div><h4 style="font-weight:700;color:var(--primary);">Industry Standard Tooling</h4><p style="font-size:14px;color:var(--on-surface-variant);margin-top:4px;">Learn on the exact software and hardware used by top-tier employers.</p></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Enquiry Form -->
-                    <section style="max-width:700px;margin:0 auto;">
-                        <div style="background:var(--surface-container-lowest);border:1px solid var(--outline-variant);border-radius:var(--radius-xl);padding:var(--space-lg);box-shadow:var(--shadow-card);text-align:center;">
-                            <span class="material-symbols-outlined" style="font-size:48px;color:var(--primary);margin-bottom:8px;">assignment</span>
-                            <h2 class="font-headline-md" style="font-family:var(--font-headline);font-size:var(--text-headline-md);color:var(--primary);margin-bottom:8px;">Program Enquiry</h2>
-                            <p style="color:var(--on-surface-variant);margin-bottom:var(--space-lg);">Request detailed syllabus and admission criteria for our industrial programs.</p>
-                            <form style="display:flex;flex-direction:column;gap:16px;text-align:left;" onsubmit="event.preventDefault();showToast('Enquiry submitted successfully!');">
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                                    <div class="form-group"><label class="form-label">Full Name</label><input type="text" class="form-input" placeholder="e.g. John Doe" required/></div>
-                                    <div class="form-group"><label class="form-label">Contact Number</label><input type="tel" class="form-input" placeholder="+91 00000 00000" required/></div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Program of Interest</label>
-                                    <select class="form-input"><option>Fabrication Drawing Masterclass</option><option>Reverse Engineering & Metrology</option><option>Advanced Sheet Metal Design</option><option>CNC Operations & Programming</option></select>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Experience Level</label>
-                                    <div style="display:flex;gap:16px;">
-                                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;"><input type="radio" name="exp" class="text-primary"/> Beginner</label>
-                                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;"><input type="radio" name="exp" class="text-primary"/> Intermediate</label>
-                                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;"><input type="radio" name="exp" class="text-primary"/> Professional</label>
-                                    </div>
-                                </div>
-                                <div class="form-group"><label class="form-label">Additional Questions</label><textarea class="form-input" rows="3" placeholder="Specific areas of interest..."></textarea></div>
-                                <button type="submit" class="btn btn-primary btn-full" style="padding:16px;">Submit Enquiry <span class="material-symbols-outlined" style="font-size:16px;">send</span></button>
-                            </form>
-                        </div>
-                    </section>
-                </div>
-            `;
-        },
-
-        /* ---- ADMISSIONS ---- */
-        admissions() {
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <section class="admission-hero">
-                    <div class="technical-grid" style="position:absolute;inset:0;z-index:0;"></div>
-                    <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(251,248,252,0.8),var(--surface-bright));z-index:0;"></div>
-                    <div class="container" style="position:relative;z-index:10;">
-                        <div class="admission-grid">
-                            <div style="display:flex;flex-direction:column;gap:var(--space-lg);padding-top:32px;">
-                                <div>
-                                    <span style="display:inline-flex;align-items:center;gap:8px;background:var(--surface-container);border:1px solid var(--outline-variant);padding:4px 12px;border-radius:50px;font-family:var(--font-label);font-size:12px;color:var(--primary);margin-bottom:24px;">
-                                        <span style="width:8px;height:8px;border-radius:50%;background:var(--secondary-fixed);animation:pulse 2s infinite;"></span>
-                                        Admissions Open 2025-26
-                                    </span>
-                                    <h1 class="font-display-lg-mobile" style="font-family:var(--font-display);font-size:var(--text-display-lg-mobile);line-height:var(--lh-display-mobile);font-weight:700;color:var(--primary);margin-bottom:24px;">Engineer Your Future.<br/>Apply Today.</h1>
-                                    <p style="font-size:var(--text-body-lg);line-height:var(--lh-body-lg);color:var(--on-surface-variant);max-width:550px;">Join the premier institution for advanced industrial training. We build technical leaders equipped for modern manufacturing challenges.</p>
-                                </div>
-                                <div style="background:rgba(255,255,255,0.8);backdrop-filter:blur(12px);border:1px solid var(--outline-variant);padding:24px;border-radius:var(--radius-lg);position:relative;overflow:hidden;box-shadow:var(--shadow-sm);">
-                                    <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--secondary-fixed);"></div>
-                                    <h3 style="font-family:var(--font-headline);font-size:var(--text-headline-sm);color:var(--primary);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
-                                        <span class="material-symbols-outlined" style="color:var(--outline);">verified_user</span> Basic Eligibility
-                                    </h3>
-                                    <ul style="display:flex;flex-direction:column;gap:16px;font-size:15px;color:var(--on-surface-variant);">
-                                        <li style="display:flex;align-items:flex-start;gap:12px;"><span class="material-symbols-outlined" style="color:var(--secondary);font-size:20px;margin-top:2px;">check_circle</span><span><strong>Age Limit:</strong> 16 to 24 years.</span></li>
-                                        <li style="display:flex;align-items:flex-start;gap:12px;"><span class="material-symbols-outlined" style="color:var(--secondary);font-size:20px;margin-top:2px;">check_circle</span><span><strong>Education:</strong> Minimum 10th Standard pass with Science & Mathematics.</span></li>
-                                        <li style="display:flex;align-items:flex-start;gap:12px;"><span class="material-symbols-outlined" style="color:var(--secondary);font-size:20px;margin-top:2px;">check_circle</span><span><strong>Physical Fitness:</strong> Must meet standard medical criteria.</span></li>
-                                    </ul>
-                                </div>
-                            </div>
-                            <div style="position:relative;margin-top:48px;">
-                                <div style="position:absolute;top:-16px;right:-16px;width:96px;height:96px;border-top:2px solid var(--outline-variant);border-right:2px solid var(--outline-variant);opacity:0.5;"></div>
-                                <div style="background:var(--surface-container-lowest);border:1px solid var(--outline-variant);border-radius:var(--radius-xl);padding:var(--space-lg);box-shadow:0 10px 40px rgba(10,31,68,0.08);position:relative;z-index:10;">
-                                    <div style="margin-bottom:24px;">
-                                        <h2 style="font-family:var(--font-headline);font-size:var(--text-headline-sm);color:var(--primary);">Free Counselling Session</h2>
-                                        <p style="color:var(--on-surface-variant);margin-top:8px;">Speak with our admission experts to find the right technical path.</p>
-                                    </div>
-                                    <form id="admissions-form" style="display:flex;flex-direction:column;gap:16px;" onsubmit="submitAdmissionsEnquiry(event)">
-                                        <div class="form-group"><label class="form-label">Full Name</label><input type="text" name="name" class="form-input" placeholder="John Doe" required/></div>
-                                        <div class="form-group"><label class="form-label">Phone Number</label><input type="tel" name="phone" class="form-input" placeholder="+91 00000 00000" required/></div>
-                                        <div class="form-group">
-                                            <label class="form-label">Trade Interest</label>
-                                            <select name="subject" class="form-input" required><option value="">Select a trade...</option><option>AutoCAD</option><option>SolidWorks</option><option>CATIA</option><option>CNC Programming</option><option>Industrial Training</option></select>
-                                        </div>
-                                        <button type="submit" class="btn btn-secondary btn-full" style="margin-top:8px;">Request Callback <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span></button>
-                                        <p style="font-size:12px;color:var(--on-surface-variant);text-align:center;margin-top:16px;">By submitting, you agree to our Privacy Policy.</p>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Process -->
-                <section style="padding:var(--space-section) 0;background:var(--surface-container-low);border-top:1px solid var(--outline-variant);border-bottom:1px solid var(--outline-variant);">
-                    <div class="container">
-                        <div style="text-align:center;margin-bottom:64px;">
-                            <span class="font-label" style="color:var(--primary);letter-spacing:0.1em;margin-bottom:8px;display:block;">Simplified Path</span>
-                            <h2 class="font-headline-md" style="font-family:var(--font-headline);font-size:var(--text-headline-md);color:var(--primary);">Admission Process</h2>
-                        </div>
-                        <div class="grid-3">
-                            <div class="process-card">
-                                <span class="process-number">01</span>
-                                <div class="process-icon"><span class="material-symbols-outlined" style="font-size:32px;font-variation-settings:'FILL' 1;">description</span></div>
-                                <h3>Application Submission</h3>
-                                <p>Complete the online application form and upload scanned copies of your academic and identity documents.</p>
-                            </div>
-                            <div class="process-card">
-                                <span class="process-number">02</span>
-                                <div class="process-icon"><span class="material-symbols-outlined" style="font-size:32px;font-variation-settings:'FILL' 1;">assignment</span></div>
-                                <h3>Entrance Assessment</h3>
-                                <p>Appear for the technical aptitude test. Shortlisted candidates will be called for a brief personal interview.</p>
-                            </div>
-                            <div class="process-card">
-                                <span class="process-number">03</span>
-                                <div class="process-icon"><span class="material-symbols-outlined" style="font-size:32px;font-variation-settings:'FILL' 1;">task_alt</span></div>
-                                <h3>Enrollment & Fees</h3>
-                                <p>Upon selection, complete your enrollment by submitting original documents and paying the term fee.</p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- FAQ -->
-                <section class="section">
-                    <div class="container" style="max-width:800px;">
-                        <div style="text-align:center;margin-bottom:48px;">
-                            <h2 class="font-headline-md" style="font-family:var(--font-headline);font-size:var(--text-headline-md);color:var(--primary);">Admissions FAQ</h2>
-                            <p style="color:var(--on-surface-variant);margin-top:8px;">Answers to common questions regarding our admission process.</p>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:16px;">
-                            <div class="faq-item">
-                                <button class="faq-question">Is there a hostel facility available?<span class="faq-icon"><span class="material-symbols-outlined" style="font-size:20px;">expand_more</span></span></button>
-                                <div class="faq-answer"><div class="faq-answer-inner">Yes, we provide separate hostel facilities for boys and girls with strict security, mess facilities, and high-speed internet access.</div></div>
-                            </div>
-                            <div class="faq-item">
-                                <button class="faq-question">What is the fee structure?<span class="faq-icon"><span class="material-symbols-outlined" style="font-size:20px;">expand_more</span></span></button>
-                                <div class="faq-answer"><div class="faq-answer-inner">The fee structure varies depending on the specific trade. Detailed fee breakdowns are provided during the counselling session.</div></div>
-                            </div>
-                            <div class="faq-item">
-                                <button class="faq-question">Are there any scholarships available?<span class="faq-icon"><span class="material-symbols-outlined" style="font-size:20px;">expand_more</span></span></button>
-                                <div class="faq-answer"><div class="faq-answer-inner">Yes, we offer merit-based scholarships for students demonstrating exceptional performance in their board exams.</div></div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            `;
-            initFAQ();
-        },
-
-        /* ---- GALLERY ---- */
-        async gallery() {
-            const apiGallery = await DataStore.fetchGallery();
-            const fallbackGallery = [
-                { title: 'CNC Training Center', category: 'CNC', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCOmpaB4xIjW3Qwv6S3K13ZfcKGlzqGUhvp9UBFn62945tiVvtgKhSmynUJHb0Y-xIiAk4LLpmpZeKsqY7J6ecPNeNX2zmZ7ZvgoFHolYHiEfQzumeW27wyk6lhRikZ67ShCE1n5Yf_hpwVn2Ss2TDGWQwvpCAoNfUDWeI15wUSEU6dczPn23kmui56VBXkEYUbjFVi9IDcH7alXTOaOUWGldhiFTB-mNtb4u90IUl53jAjZERrW_k3mg' },
-                { title: 'CAD Design Suites', category: 'CAD', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBXuqjvOC-jh5OC6M-upDH1nIoYn3fz8mQRJervO0K628T63eKWuOsC1ISp_dbQ3FU-vf4-bRQanVtPiocbYttovLzedIw7-MfdoCl7pOl2pT3Dev4k9OmB3x6VOILibSSJLJO49DDd2ihTmjO0sLyfVbfKkcrCNnj2OIAAiS2LMmVFbSfHilwbDtprkHgHxiX6TGtmuR-DmzoQV8uR3DxeJCv4ztD-se0Boz-_W__wI4JS8c2VdngC9g' },
-                { title: 'Main Campus', category: 'Campus', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAvS46g0SUFVGpYZeL8StwuqTyE5mLDvVNOAK45Dq0KKd2Ztx5YqJ1obtZVV4NolXL9e31ipzq5M07Sx1MTq_sMRHxedVg6FKH3yZ8I48NLUPWJgGWC4NeR4lkHdys7asGSfyYDwpzvTjPcLj0AawLNLWfdhvBkGiFwxdk7Bu4InwJYNtwSSM8eIJkQ1nVDIzMwMUCaL5y-WM2T1H2JekKrNtAi_GZtdzjwnpYDssI_ymaf2njpj4RJZA' },
-                { title: 'Robotics Workshop', category: 'Events', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD7UHZPgVK9BcnL4QUIwkO1VUnUWIKZHK8vUeuBeGE4pxVJcKHf_S_sgzLx_UM57ot8IaJ2eB4zB8vHP33TeNEsRdgGVxPxxa9oxfYkX-l_Q23c5N4R7lSRGJ2xXoHLw5M5xhUoYw9wELec2BlewF3oPXE41-Ng8aGEFzRaY039H1YU4It9z3Nw6NkX-u1EfGPScyLRRgvDwNdlxGwya7dd9QvCUSnAi-9jjjkRQ_d3BvOUSFTEM_gcCA' },
-            ];
-            const items = apiGallery.length ? apiGallery : fallbackGallery;
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <div class="container" style="padding-top:var(--space-section);padding-bottom:var(--space-section);">
-                    <header class="page-header">
-                        <h1>Facility & Gallery</h1>
-                        <p>Explore our state-of-the-art technical training facilities.</p>
-                    </header>
-                    <section style="margin-bottom:var(--space-section);">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">photo_library</span> Campus Gallery
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">Campus Gallery</h2>
-                        </div>
-                        <div style="display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,250px);gap:16px;" class="gallery-bento">
-                            <div class="lazy-bg" data-bg="${items[0]?.image||''}" style="grid-column:span 2;grid-row:span 2;background-size:cover;background-position:center;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;">
-                                <div style="position:absolute;inset:0;background:linear-gradient(transparent 40%, rgba(0,8,30,0.8));"></div>
-                                <div style="position:absolute;bottom:16px;left:16px;z-index:10;"><span style="display:inline-block;padding:4px 10px;background:var(--primary);color:var(--on-primary);border-radius:4px;font-size:11px;font-family:var(--font-label);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">${items[0]?.category||'Campus'}</span><h3 style="color:white;font-family:var(--font-headline);font-size:20px;">${items[0]?.title||'Featured'}</h3></div>
-                            </div>
-                            ${items.slice(1,3).map(g => `<div class="lazy-bg" data-bg="${g.image||''}" style="background-size:cover;background-position:center;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;"><div style="position:absolute;inset:0;background:linear-gradient(transparent 40%, rgba(0,8,30,0.8));"></div><div style="position:absolute;bottom:16px;left:16px;z-index:10;"><span style="display:inline-block;padding:4px 10px;background:var(--primary);color:var(--on-primary);border-radius:4px;font-size:11px;font-family:var(--font-label);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">${g.category||'Campus'}</span><h3 style="color:white;font-family:var(--font-headline);font-size:16px;">${g.title}</h3></div></div>`).join('')}
-                            <div class="lazy-bg" data-bg="${items[3]?.image||items[1]?.image||''}" style="grid-column:span 2;background-size:cover;background-position:center;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;"><div style="position:absolute;inset:0;background:linear-gradient(transparent 40%, rgba(0,8,30,0.8));"></div><div style="position:absolute;bottom:16px;left:16px;z-index:10;"><span style="display:inline-block;padding:4px 10px;background:var(--primary);color:var(--on-primary);border-radius:4px;font-size:11px;font-family:var(--font-label);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">${items[3]?.category||items[1]?.category||'Campus'}</span><h3 style="color:white;font-family:var(--font-headline);font-size:16px;">${items[3]?.title||items[1]?.title||'Gallery'}</h3></div></div>
-                        </div>
-                    </section>
-                </div>
-                ${Pages._contactSection()}
-                ${Pages._mapSection()}
-            `;
-        },
-
-        /* ---- CONTACT ---- */
-        contact() {
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <div class="container">
-                    <header class="page-header">
-                        <h1>Contact Us</h1>
-                        <p>Get in touch with our admissions team to start your journey in advanced manufacturing.</p>
-                    </header>
-                </div>
-                ${Pages._contactSection()}
-                ${Pages._mapSection()}
-            `;
-        },
-
-        _contactSection() {
-            return `
-                <section style="padding:var(--space-section) 0;background:var(--surface-container-low);border-top:1px solid var(--outline-variant);border-bottom:1px solid var(--outline-variant);">
-                    <div class="container">
-                        <div class="contact-layout">
-                            <div class="contact-info-card">
-                                <h2 class="font-headline-md" style="font-family:var(--font-headline);font-size:var(--text-headline-md);color:var(--primary);margin-bottom:var(--space-lg);">Get in Touch</h2>
-                                <div style="display:flex;flex-direction:column;gap:var(--space-lg);">
-                                    <div class="contact-detail">
-                                        <div class="contact-detail-icon"><span class="material-symbols-outlined" style="color:var(--primary);">location_on</span></div>
-                                        <div><h4>Visit Us</h4><p>Gamharia Chowk</p><span>Jamshedpur, Jharkhand</span></div>
-                                    </div>
-                                    <div class="contact-detail">
-                                        <div class="contact-detail-icon"><span class="material-symbols-outlined" style="color:var(--primary);">call</span></div>
-                                        <div><h4>Call Us</h4><p><a href="tel:+918789961355">8789961355</a></p><span>Mon-Sat, 9AM - 6PM</span></div>
-                                    </div>
-                                    <div class="contact-detail">
-                                        <div class="contact-detail-icon green"><span class="material-symbols-outlined">chat</span></div>
-                                        <div><h4>Message Us</h4><p>WhatsApp Support</p><span>Quick replies within 1 hr</span></div>
-                                    </div>
-                                </div>
-                                <div style="margin-top:var(--space-lg);padding-top:var(--space-lg);border-top:1px solid var(--outline-variant);">
-                                    <p style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--on-surface-variant);margin-bottom:16px;">Follow Our Progress</p>
-                                    <div style="display:flex;gap:16px;">
-                                        <a href="javascript:void(0)" style="width:40px;height:40px;border-radius:var(--radius-md);border:1px solid var(--outline-variant);display:flex;align-items:center;justify-content:center;color:var(--primary);transition:background 0.2s;"><span class="material-symbols-outlined">language</span></a>
-                                        <a href="javascript:void(0)" style="width:40px;height:40px;border-radius:var(--radius-md);border:1px solid var(--outline-variant);display:flex;align-items:center;justify-content:center;color:var(--primary);transition:background 0.2s;"><span class="material-symbols-outlined">photo_camera</span></a>
-                                        <a href="javascript:void(0)" style="width:40px;height:40px;border-radius:var(--radius-md);border:1px solid var(--outline-variant);display:flex;align-items:center;justify-content:center;color:var(--primary);transition:background 0.2s;"><span class="material-symbols-outlined">video_library</span></a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="contact-form-card">
-                                <h3 style="font-family:var(--font-headline);font-size:var(--text-headline-sm);color:var(--primary);margin-bottom:8px;">General Enquiry</h3>
-                                <p style="color:var(--on-surface-variant);margin-bottom:var(--space-lg);">Fill out the form and our admissions team will contact you shortly.</p>
-                                <form id="contact-enquiry-form" style="display:flex;flex-direction:column;gap:16px;" onsubmit="submitContactEnquiry(event)">
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                                        <div class="form-group"><label class="form-label">Full Name *</label><input type="text" name="name" class="form-input" placeholder="John Doe" required/></div>
-                                        <div class="form-group"><label class="form-label">Phone Number *</label><input type="tel" name="phone" class="form-input" placeholder="+91" required/></div>
-                                    </div>
-                                    <div class="form-group"><label class="form-label">Email Address</label><input type="email" name="email" class="form-input" placeholder="student@example.com"/></div>
-                                    <div class="form-group">
-                                        <label class="form-label">Course of Interest</label>
-                                        <select name="course_slug" class="form-input"><option value="">Select a course...</option><option value="cnc-lathe-programming">CNC Machining</option><option value="industrial-safety-quality">Industrial Automation</option><option value="autocad-fundamentals">CAD/CAM Design</option><option value="other">Other / Not Sure</option></select>
-                                    </div>
-                                    <div class="form-group"><label class="form-label">Message</label><textarea name="message" class="form-input" rows="4" placeholder="How can we help you?"></textarea></div>
-                                    <button type="submit" class="btn btn-primary btn-full" style="padding:16px;">Send Enquiry <span class="material-symbols-outlined" style="font-size:16px;">arrow_forward</span></button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </section>`;
-        },
-
-        _mapSection() {
-            return `
-                <section style="width:100%;height:400px;position:relative;background:var(--surface-variant);">
-                    <div style="position:absolute;inset:0;background:linear-gradient(135deg,#e4e2e5 0%,#dbd9dd 100%);opacity:0.8;"></div>
-                    <div style="position:absolute;inset:0;background:rgba(0,8,30,0.05);"></div>
-                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:10;">
-                        <div style="background:var(--surface);padding:8px 16px;border-radius:var(--radius-md);box-shadow:var(--shadow-lg);border:1px solid var(--outline-variant);">
-                            <p style="font-family:var(--font-label);font-size:12px;color:var(--primary);font-weight:700;">Global Institute</p>
-                            <p style="font-family:var(--font-label);font-size:10px;color:var(--on-surface-variant);">Gamharia Chowk, Jamshedpur</p>
-                        </div>
-                        <span class="material-symbols-outlined" style="font-size:48px;color:var(--error);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));font-variation-settings:'FILL' 1;">location_on</span>
-                    </div>
-                </section>`;
-        },
-
-        /* ---- ABOUT ---- */
-        about() {
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                <div class="container">
-                    <header class="page-header">
-                        <h1>About Global Institute</h1>
-                        <p>Youth Skill Development & Research Institute in Gamharia, Jamshedpur, Jharkhand</p>
-                    </header>
-
-                    <!-- Mission & Vision -->
-                    <section style="margin-bottom:var(--space-section);">
-                        <div style="display:grid;grid-template-columns:1fr;gap:var(--space-gutter);">
-                            <div style="background:var(--primary);color:var(--on-primary);border-radius:var(--radius-xl);padding:var(--space-lg);position:relative;overflow:hidden;">
-                                <div class="blueprint-dark" style="position:absolute;inset:0;opacity:0.3;"></div>
-                                <div style="position:relative;z-index:10;">
-                                    <span class="material-symbols-outlined" style="font-size:48px;color:var(--secondary-fixed);margin-bottom:16px;">flag</span>
-                                    <h2 style="font-family:var(--font-headline);font-size:var(--text-headline-md);margin-bottom:12px;">Our Mission</h2>
-                                    <p style="opacity:0.9;line-height:1.7;">To bridge the gap between academic education and industrial requirements by providing world-class technical training that empowers youth with job-ready skills for the modern manufacturing sector.</p>
-                                </div>
-                            </div>
-                            <div style="background:var(--surface-container-lowest);border:1px solid var(--outline-variant);border-radius:var(--radius-xl);padding:var(--space-lg);position:relative;overflow:hidden;">
-                                <span class="material-symbols-outlined" style="font-size:48px;color:var(--primary);margin-bottom:16px;">visibility</span>
-                                <h2 style="font-family:var(--font-headline);font-size:var(--text-headline-md);color:var(--primary);margin-bottom:12px;">Our Vision</h2>
-                                <p style="color:var(--on-surface-variant);line-height:1.7;">To become the leading skill development institute in Eastern India, producing industry-ready professionals who contribute to India's manufacturing and engineering excellence.</p>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Values -->
-                    <section style="margin-bottom:var(--space-section);">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;text-align:left;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">favorite</span> Our Values
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">What We Stand For</h2>
-                        </div>
-                        <div class="about-values-grid" style="margin-top:var(--space-lg);">
-                            <div class="value-card">
-                                <span class="material-symbols-outlined">precision_manufacturing</span>
-                                <h3>Technical Excellence</h3>
-                                <p>Industry-grade equipment and curriculum developed with manufacturing partners.</p>
-                            </div>
-                            <div class="value-card">
-                                <span class="material-symbols-outlined">groups</span>
-                                <h3>Student-Centered</h3>
-                                <p>Small batch sizes, personalized attention, and mentorship-driven learning.</p>
-                            </div>
-                            <div class="value-card">
-                                <span class="material-symbols-outlined">handshake</span>
-                                <h3>Industry Partnership</h3>
-                                <p>Direct collaboration with manufacturing companies for curriculum and placement.</p>
-                            </div>
-                            <div class="value-card">
-                                <span class="material-symbols-outlined">emoji_events</span>
-                                <h3>Results Oriented</h3>
-                                <p>Measurable outcomes with placement tracking and career support.</p>
-                            </div>
-                            <div class="value-card">
-                                <span class="material-symbols-outlined">security</span>
-                                <h3>Safety First</h3>
-                                <p>World-class safety standards in all practical training environments.</p>
-                            </div>
-                            <div class="value-card">
-                                <span class="material-symbols-outlined">eco</span>
-                                <h3>Sustainability</h3>
-                                <p>Environmentally responsible practices in our training methodologies.</p>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Trainers -->
-                    <section style="margin-bottom:var(--space-section);">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;text-align:left;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">school</span> Our Team
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">Expert Trainers</h2>
-                        </div>
-                        <div class="grid-3" style="margin-top:var(--space-lg);">
-                            <div class="trainer-card">
-                                <div class="trainer-photo"><span class="material-symbols-outlined">person</span></div>
-                                <div class="trainer-info">
-                                    <h3>Industry Expert</h3>
-                                    <div class="designation">Senior CAD Trainer</div>
-                                    <p>15+ years of experience in mechanical design and CAD/CAM training.</p>
-                                </div>
-                            </div>
-                            <div class="trainer-card">
-                                <div class="trainer-photo"><span class="material-symbols-outlined">person</span></div>
-                                <div class="trainer-info">
-                                    <h3>CNC Specialist</h3>
-                                    <div class="designation">CNC Programming Lead</div>
-                                    <p>Expert in multi-axis CNC programming with industry deployment experience.</p>
-                                </div>
-                            </div>
-                            <div class="trainer-card">
-                                <div class="trainer-photo"><span class="material-symbols-outlined">person</span></div>
-                                <div class="trainer-info">
-                                    <h3>Industrial Engineer</h3>
-                                    <div class="designation">Industrial Training Head</div>
-                                    <p>Specialist in fabrication, reverse engineering, and industrial processes.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Infrastructure -->
-                    <section style="margin-bottom:var(--space-section);">
-                        <div style="border-left:3px solid var(--secondary);padding-left:16px;margin-bottom:32px;">
-                            <div style="font-family:var(--font-label);font-size:12px;letter-spacing:0.05em;text-transform:uppercase;color:var(--secondary);display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                <span class="material-symbols-outlined" style="font-size:16px;">building</span> Infrastructure
-                            </div>
-                            <h2 style="font-family:var(--font-headline);font-size:28px;font-weight:600;color:var(--primary);">World-Class Facilities</h2>
-                        </div>
-                        <div class="grid-4" style="margin-top:var(--space-lg);">
-                            <div class="why-card" style="flex-direction:column;text-align:center;align-items:center;">
-                                <span class="material-symbols-outlined" style="font-size:40px;color:var(--primary);">precision_manufacturing</span>
-                                <h3>CNC Lab</h3>
-                                <p>Latest CNC, VMC, and HMC machines for hands-on training.</p>
-                            </div>
-                            <div class="why-card" style="flex-direction:column;text-align:center;align-items:center;">
-                                <span class="material-symbols-outlined" style="font-size:40px;color:var(--primary);">computer</span>
-                                <h3>CAD Lab</h3>
-                                <p>High-performance workstations with licensed CAD software.</p>
-                            </div>
-                            <div class="why-card" style="flex-direction:column;text-align:center;align-items:center;">
-                                <span class="material-symbols-outlined" style="font-size:40px;color:var(--primary);">settings_suggest</span>
-                                <h3>Workshop</h3>
-                                <p>Full-scale industrial workshop for practical training.</p>
-                            </div>
-                            <div class="why-card" style="flex-direction:column;text-align:center;align-items:center;">
-                                <span class="material-symbols-outlined" style="font-size:40px;color:var(--primary);">library_books</span>
-                                <h3>Library</h3>
-                                <p>Technical reference books, journals, and digital resources.</p>
-                            </div>
-                        </div>
-                    </section>
-                </div>
-            `;
-        },
-    };
-
-    /* ------------------------------------------
-       Scroll Reveal Animation
-       ------------------------------------------ */
-    function initScrollReveal() {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                    observer.unobserve(entry.target);
-                }
+        const lightbox = document.getElementById('lightbox');
+        if (!lightbox) return;
+        const img = lightbox.querySelector('img');
+        document.querySelectorAll('.gallery-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const data = images[Number(item.dataset.galleryIndex)];
+                if (!data) return;
+                img.src = data.image;
+                img.alt = data.alt_text || data.title || '';
+                lightbox.classList.add('active');
+                lightbox.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
             });
-        }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-
-        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        });
+        function close() { lightbox.classList.remove('active'); lightbox.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
+        lightbox.addEventListener('click', e => { if (e.target === lightbox || e.target.closest('.lightbox-close')) close(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
     }
 
-    /* ------------------------------------------
-       Compact Navigation on Scroll
-       ------------------------------------------ */
+    /* --------------------------------------------------------
+       Navigation shell wiring
+       -------------------------------------------------------- */
+    function initMobileNav() {
+        const menuBtn = document.getElementById('mobile-menu-btn');
+        const overlay = document.getElementById('mobile-nav-overlay');
+        const closeBtn = document.getElementById('mobile-close-btn');
+        if (!menuBtn || !overlay) return;
+        const open = () => { overlay.classList.add('active'); document.body.style.overflow = 'hidden'; menuBtn.setAttribute('aria-expanded', 'true'); };
+        const close = () => { overlay.classList.remove('active'); document.body.style.overflow = ''; menuBtn.setAttribute('aria-expanded', 'false'); };
+        menuBtn.addEventListener('click', open);
+        closeBtn && closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        overlay.querySelectorAll('[data-link]').forEach(a => a.addEventListener('click', close));
+        window.closeMobileNav = close;
+    }
+
     function initCompactNav() {
         const nav = document.getElementById('main-nav');
         if (!nav) return;
-        let lastScroll = 0;
-        window.addEventListener('scroll', () => {
-            const scrollY = window.scrollY;
-            if (scrollY > 60) {
-                nav.classList.add('compact');
-            } else {
-                nav.classList.remove('compact');
-            }
-            lastScroll = scrollY;
-        }, { passive: true });
+        const onScroll = () => nav.classList.toggle('compact', window.scrollY > 40);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
     }
 
-    /* ------------------------------------------
-       Initialize Application
-       ------------------------------------------ */
-    function init() {
-        // Setup mobile navigation
-        initMobileNav();
-
-        // Setup compact nav
-        initCompactNav();
-
-        // Setup enquiry modal close on overlay click
-        document.getElementById('enquiry-modal')?.addEventListener('click', (e) => {
-            if (e.target.id === 'enquiry-modal') closeEnquiryModal();
+    function initGlobalHandlers() {
+        document.addEventListener('click', e => {
+            const enquiry = e.target.closest('[data-open-enquiry]');
+            if (enquiry) {
+                e.preventDefault();
+                openEnquiryModal(enquiry.dataset.course || '');
+                window.closeMobileNav && window.closeMobileNav();
+                return;
+            }
+            const toast = e.target.closest('[data-toast]');
+            if (toast) { e.preventDefault(); showToast(toast.dataset.toast); return; }
+            if (e.target.classList && e.target.classList.contains('modal-overlay') && e.target.id === 'enquiry-modal') {
+                closeEnquiryModal();
+            }
         });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEnquiryModal(); });
+    }
 
-        // Setup enquiry form
-        document.getElementById('enquiry-form')?.addEventListener('submit', async (e) => {
+    /* --------------------------------------------------------
+       Settings hydration + footer programs
+       -------------------------------------------------------- */
+    function hydrateSettings(settings) {
+        if (!settings) return;
+        document.querySelectorAll('[data-setting]').forEach(el => {
+            const key = el.dataset.setting;
+            if (settings[key]) el.textContent = settings[key];
+        });
+        document.querySelectorAll('[data-setting-text]').forEach(el => {
+            const key = el.dataset.settingText;
+            if (settings[key]) el.textContent = settings[key];
+        });
+        document.querySelectorAll('[data-setting-href]').forEach(el => {
+            const spec = el.dataset.settingHref;
+            const key = spec.split(/[:/]/).pop();
+            const value = settings[key];
+            if (!value) return;
+            if (spec.startsWith('tel:')) el.href = 'tel:' + String(value).replace(/[^+\d]/g, '');
+            else el.href = spec.replace(key, value);
+        });
+        document.querySelectorAll('[data-social]').forEach(el => {
+            const url = settings[el.dataset.social];
+            if (url) { el.href = url; el.style.display = ''; } else { el.style.display = 'none'; }
+        });
+        const announcementText = document.getElementById('announcement-text');
+        if (announcementText && settings.enrollment_message) announcementText.textContent = settings.enrollment_message;
+        const announcementBar = document.getElementById('announcement-bar');
+        if (announcementBar && String(settings.enrollment_open) === '0') announcementBar.style.display = 'none';
+    }
+
+    function hydrateFooterPrograms(courses) {
+        const list = document.getElementById('footer-programs');
+        if (!list || !courses.length) return;
+        list.innerHTML = courses.slice(0, 6).map(c =>
+            '<li><a href="#/courses/' + esc(c.slug) + '" data-link><span class="material-symbols-outlined link-icon">' + categoryMeta(c.category_slug).icon + '</span>' + esc(c.title) + '</a></li>'
+        ).join('');
+    }
+
+    function hydrateCourseSelects(courses) {
+        document.querySelectorAll('[data-course-select], #enquiry-course').forEach(select => {
+            const existing = Array.from(select.options).map(o => o.value);
+            courses.forEach(c => {
+                if (existing.includes(c.slug)) return;
+                const opt = document.createElement('option');
+                opt.value = c.slug;
+                opt.textContent = c.title;
+                const other = select.querySelector('option[value="other"]');
+                if (other) select.insertBefore(opt, other); else select.appendChild(opt);
+            });
+        });
+    }
+
+    function initNewsletter() {
+        const form = document.getElementById('newsletter-form');
+        if (!form) return;
+        form.addEventListener('submit', e => {
             e.preventDefault();
-            const form = e.target;
-            const btn = form.querySelector('button[type="submit"]');
-            const originalText = btn.textContent;
-            btn.textContent = 'Submitting...';
-            btn.disabled = true;
-            try {
-                const csrfRes = await fetch(`${API_BASE}/api/csrf-token`);
-                const { token } = await csrfRes.json();
-                const formData = new FormData(form);
-                formData.set('_token', token);
-                const res = await fetch(`${API_BASE}/api/enquiries`, {
-                    method: 'POST',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                    body: formData,
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    closeEnquiryModal();
-                    form.reset();
-                    showToast('Enquiry submitted successfully! We will contact you soon.');
-                } else {
-                    showToast(data.message || 'Something went wrong. Please try again.', 'error');
-                }
-            } catch (err) {
-                showToast('Network error. Please try again.', 'error');
-            } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
+            form.reset();
+            showToast('Thanks! We will keep you updated.');
         });
-
-        // Setup routes
-        Router
-            .addRoute('/', Pages.home)
-            .addRoute('/courses', Pages.courses)
-            .addRoute('/courses/:slug', Pages.courseDetail)
-            .addRoute('/industrial-training', Pages.industrialTraining)
-            .addRoute('/admissions', Pages.admissions)
-            .addRoute('/gallery', Pages.gallery)
-            .addRoute('/contact', Pages.contact)
-            .addRoute('/about', Pages.about);
-
-        // Start router
-        Router.init();
     }
 
-    // Expose globals for inline handlers
+    /* --------------------------------------------------------
+       Boot
+       -------------------------------------------------------- */
+    function init() {
+        initMobileNav();
+        initCompactNav();
+        initGlobalHandlers();
+        initNewsletter();
+        wireForm('enquiry-form', { successMessage: 'Enquiry submitted. We will contact you soon.' });
+
+        window.addEventListener('hashchange', () => Router.resolve());
+
+        // Hydrate shell from API without blocking first paint.
+        Promise.all([Store.settings(), Store.courses()]).then(([settings, courses]) => {
+            hydrateSettings(settings);
+            hydrateFooterPrograms(courses);
+            hydrateCourseSelects(courses);
+        });
+
+        Router.resolve();
+    }
+
     window.openEnquiryModal = openEnquiryModal;
     window.closeEnquiryModal = closeEnquiryModal;
     window.showToast = showToast;
-    window.toggleFaq = function(i) {
-        document.querySelectorAll('.faq-item').forEach((el, idx) => {
-            if (idx === i) el.classList.toggle('open');
-            else el.classList.remove('open');
-        });
-    };
-    window.submitContactEnquiry = async function(e) {
-        e.preventDefault();
-        const form = e.target;
-        const btn = form.querySelector('button[type="submit"]');
-        const orig = btn.textContent;
-        btn.textContent = 'Sending...'; btn.disabled = true;
-        try {
-            const csrfRes = await fetch(`${API_BASE}/api/csrf-token`);
-            const { token } = await csrfRes.json();
-            const fd = new FormData(form);
-            fd.set('_token', token);
-            const res = await fetch(`${API_BASE}/api/enquiries`, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
-            const data = await res.json();
-            if (res.ok && data.success) { form.reset(); showToast('Enquiry submitted successfully!'); }
-            else showToast(data.message || 'Something went wrong.', 'error');
-        } catch (err) { showToast('Network error.', 'error'); }
-        finally { btn.textContent = orig; btn.disabled = false; }
-    };
 
-    window.submitCourseEnquiry = async function(e, courseTitle) {
-        e.preventDefault();
-        const form = e.target;
-        const btn = form.querySelector('button[type="submit"]');
-        const orig = btn.textContent;
-        btn.textContent = 'Submitting...'; btn.disabled = true;
-        try {
-            const csrfRes = await fetch(`${API_BASE}/api/csrf-token`);
-            const { token } = await csrfRes.json();
-            const fd = new FormData(form);
-            fd.set('_token', token);
-            fd.set('subject', courseTitle);
-            fd.set('source', 'course_detail');
-            const res = await fetch(`${API_BASE}/api/enquiries`, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
-            const data = await res.json();
-            if (res.ok && data.success) { form.reset(); showToast('Enquiry submitted! We will contact you shortly.'); }
-            else showToast(data.message || 'Something went wrong.', 'error');
-        } catch (err) { showToast('Network error.', 'error'); }
-        finally { btn.textContent = orig; btn.disabled = false; }
-    };
-
-    window.submitAdmissionsEnquiry = async function(e) {
-        e.preventDefault();
-        const form = e.target;
-        const btn = form.querySelector('button[type="submit"]');
-        const orig = btn.innerHTML;
-        btn.innerHTML = 'Submitting...'; btn.disabled = true;
-        try {
-            const csrfRes = await fetch(`${API_BASE}/api/csrf-token`);
-            const { token } = await csrfRes.json();
-            const fd = new FormData(form);
-            fd.set('_token', token);
-            fd.set('source', 'admissions');
-            const res = await fetch(`${API_BASE}/api/enquiries`, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
-            const data = await res.json();
-            if (res.ok && data.success) { form.reset(); showToast('Counselling request submitted! Our team will call you shortly.'); }
-            else showToast(data.message || 'Something went wrong.', 'error');
-        } catch (err) { showToast('Network error.', 'error'); }
-        finally { btn.innerHTML = orig; btn.disabled = false; }
-    };
-
-    // Boot
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
 })();

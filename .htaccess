@@ -5,6 +5,11 @@
 
     RewriteEngine On
 
+    # Canonicalise the app folder name (Windows URLs may be typed in any case)
+    RewriteCond %{REQUEST_URI} ^/globalinstitute(/.*)?$ [NC]
+    RewriteCond %{REQUEST_URI} !^/globalInstitute
+    RewriteRule ^ /globalInstitute%1 [R=301,L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
@@ -18,7 +23,7 @@
     # %{REQUEST_URI} = /globalInstitute/build/assets/app.css
     # We need to check public/build/assets/app.css relative to project root
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_URI} ^/globalInstitute/(.+)$
+    RewriteCond %{REQUEST_URI} ^/globalInstitute/(.+)$ [NC]
     RewriteCond %{DOCUMENT_ROOT}/globalInstitute/public/%1 -f
     RewriteRule ^ /globalInstitute/public/%1 [L]
 

@@ -532,7 +532,7 @@ var AdminApp = {
         if (!nav) nav = document.getElementById('sidebar-nav');
         if (!nav) return Promise.resolve();
 
-        return Api.get('sidebar').then(function (res) {
+        return Api.get('/sidebar').then(function (res) {
             if (res.success && res.data) {
                 NAV_SECTIONS = res.data.menus || [];
                 USER_PERMISSIONS = res.data.permissions || [];
