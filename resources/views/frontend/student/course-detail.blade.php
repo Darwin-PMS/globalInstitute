@@ -33,7 +33,7 @@
             @forelse($course->modules ?? [] as $moduleIndex => $module)
                 <div class="accordion">
                     <button class="accordion-header">
-                        <span>Module {{ $moduleIndex + 1 }}: {{ $module->title }}</span>
+                        <span>Module {{ $moduleIndex + 1 }}: {{ $module->name }}</span>
                         <span class="material-symbols-outlined accordion-icon">expand_more</span>
                     </button>
                     <div class="accordion-body">

@@ -161,14 +161,14 @@ class User extends Authenticatable
 
         // Apply direct user DENY overrides
         $this->directPermissions()
-            ->where('pivot.type', 'deny')
+            ->wherePivot('type', 'deny')
             ->each(function ($perm) use (&$allowed) {
                 $allowed->forget($perm->slug);
             });
 
         // Apply direct user ALLOW overrides
         $this->directPermissions()
-            ->where('pivot.type', 'allow')
+            ->wherePivot('type', 'allow')
             ->each(function ($perm) use (&$allowed) {
                 $allowed->put($perm->slug, true);
             });
@@ -190,7 +190,7 @@ class User extends Authenticatable
         // Check user-level DENY override first
         $directDeny = $this->directPermissions()
             ->where('slug', $permissionSlug)
-            ->where('pivot.type', 'deny')
+            ->wherePivot('type', 'deny')
             ->exists();
 
         if ($directDeny) {
@@ -200,7 +200,7 @@ class User extends Authenticatable
         // Check user-level ALLOW override
         $directAllow = $this->directPermissions()
             ->where('slug', $permissionSlug)
-            ->where('pivot.type', 'allow')
+            ->wherePivot('type', 'allow')
             ->exists();
 
         if ($directAllow) {

@@ -14,45 +14,22 @@
 @endphp
 
 @foreach ($sidebarTree as $section)
-    @php
-        // Section header (parent with no route)
-        $isActive = false;
-        if (!empty($section['children'])) {
+    @if (empty($section['children']))
+        {{-- Top-level menu that links to its own destination (e.g. Dashboard),
+             rather than acting as a header for child items. --}}
+        @include('partials.admin-sidebar-link', ['item' => $section, 'currentRoute' => $currentRoute, 'fullLoad' => true])
+    @else
+        @php
             $childRoutes = array_column($section['children'], 'route_name');
             $isActive = in_array($currentRoute, array_filter($childRoutes));
-        }
-    @endphp
+        @endphp
 
-    <div class="nav-section{{ $isActive ? ' section-active' : '' }}">
-        <div class="nav-section-label">{{ $section['name'] }}</div>
+        <div class="nav-section{{ $isActive ? ' section-active' : '' }}">
+            <div class="nav-section-label">{{ $section['name'] }}</div>
 
-        @if (!empty($section['children']))
             @foreach ($section['children'] as $item)
-                @php
-                    $url = '#';
-                    if (!empty($item['route_name'])) {
-                        $url = route($item['route_name']);
-                    } elseif (!empty($item['url'])) {
-                        $url = $item['url'];
-                    } elseif ($item['is_spa'] ?? false) {
-                        $url = '#/' . $item['slug'];
-                    }
-
-                    $itemActive = $currentRoute === ($item['route_name'] ?? '');
-                    $linkClass = 'nav-link' . ($itemActive ? ' active' : '');
-                @endphp
-
-                <a href="{{ $url }}"
-                   class="{{ $linkClass }}"
-                   data-route="{{ $item['slug'] }}"
-                   @if($item['target'] === '_blank') target="_blank" rel="noopener" @endif
-                   @if($itemActive) aria-current="page" @endif>
-                    @if (!empty($item['icon']))
-                        <span class="material-symbols-outlined">{{ $item['icon'] }}</span>
-                    @endif
-                    <span class="nav-text">{{ $item['name'] }}</span>
-                </a>
+                @include('partials.admin-sidebar-link', ['item' => $item, 'currentRoute' => $currentRoute])
             @endforeach
-        @endif
-    </div>
+        </div>
+    @endif
 @endforeach

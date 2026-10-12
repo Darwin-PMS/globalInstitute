@@ -24,10 +24,29 @@
         return window.location.origin;
     })();
 
+    /* Sub-path the app is served from, e.g. '' at a domain root or
+       '/globalInstitute' under a local XAMPP sub-directory. */
+    const BASE_PATH = (() => {
+        try {
+            const url = new URL(API_BASE || window.location.origin, window.location.origin);
+            return url.pathname.replace(/\/$/, '');
+        } catch (e) {
+            return '';
+        }
+    })();
+
     const IMG_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
         '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" fill="#eef1f6">' +
         '<rect width="600" height="400"/></svg>'
     );
+
+    /* Google Maps: exact place share link + keyless embed of the campus. */
+    const DEFAULT_MAP_URL = 'https://maps.app.goo.gl/oc38H4gZ7vWVUg6PA';
+    const DEFAULT_MAP_EMBED = 'https://www.google.com/maps?q=' +
+        encodeURIComponent('Global Institute & CAD CAM, Gamharia, Jamshedpur, Jharkhand 832108') +
+        '&output=embed';
+
+    let appSettings = {};
 
     const CATEGORY_META = {
         'cad-cam':            { label: 'CAD/CAM',          icon: 'precision_manufacturing' },
@@ -100,7 +119,8 @@
         gallery()      { return this._load('gallery', '/api/gallery', []); },
         announcements(){ return this._load('announcements', '/api/announcements', []); },
         settings()     { return this._load('settings', '/api/settings', {}); },
-        course(slug)   { return this._load('course:' + slug, '/api/courses/' + encodeURIComponent(slug), null); }
+        course(slug)   { return this._load('course:' + slug, '/api/courses/' + encodeURIComponent(slug), null); },
+        page(slug)     { return this._load('page:' + slug, '/api/pages/' + encodeURIComponent(slug), null); }
     };
 
     /* --------------------------------------------------------
@@ -213,6 +233,7 @@
         { pattern: /^\/admissions$/,           page: 'admissions' },
         { pattern: /^\/gallery$/,              page: 'gallery' },
         { pattern: /^\/contact$/,              page: 'contact' },
+        { pattern: /^\/([^/]+)$/,              page: 'page', params: ['slug'] },
     ];
 
     const ACTIVE_PAGES = {
@@ -224,7 +245,10 @@
     const Router = {
         current: null,
         resolve() {
-            const hash = (window.location.hash.slice(1) || '/').split('?')[0];
+            const raw = window.location.hash
+                ? window.location.hash.slice(1)
+                : window.location.pathname.slice(BASE_PATH.length);
+            const hash = (raw || '/').split('?')[0] || '/';
             let match = null;
             for (const route of Routes) {
                 const m = hash.match(route.pattern);
@@ -240,16 +264,31 @@
         transition(renderFn) {
             const app = document.getElementById('app');
             app.classList.add('page-exit');
-            window.setTimeout(() => {
-                renderFn();
+            window.setTimeout(async () => {
+                try {
+                    await renderFn();
+                } catch (e) {
+                    /* never leave the loader stuck if a page fails */
+                }
                 app.classList.remove('page-exit');
                 app.classList.add('page-enter');
                 window.setTimeout(() => app.classList.remove('page-enter'), 260);
                 if (window.LazyLoad) window.LazyLoad.init(app);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                hideLoader();
             }, 140);
         }
     };
+
+    let loaderHidden = false;
+    function hideLoader() {
+        if (loaderHidden) return;
+        loaderHidden = true;
+        const loader = document.getElementById('page-loader');
+        if (!loader) return;
+        loader.classList.add('is-hidden');
+        window.setTimeout(() => { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 500);
+    }
 
     function setActiveNav(page) {
         document.querySelectorAll('[data-page]').forEach(el => {
@@ -323,6 +362,7 @@
         for (let i = 0; i < rating; i++) stars += '<span class="material-symbols-outlined">star</span>';
         return '' +
         '<figure class="testimonial-card reveal">' +
+            '<span class="material-symbols-outlined testimonial-quote">format_quote</span>' +
             '<div class="testimonial-stars">' + stars + '</div>' +
             '<blockquote class="testimonial-text">' + esc(t.content) + '</blockquote>' +
             '<figcaption class="testimonial-author">' +
@@ -372,7 +412,9 @@
                         '</div>' +
                         '<div class="contact-detail">' +
                             '<div class="contact-detail-icon"><span class="material-symbols-outlined">call</span></div>' +
-                            '<div><h4>Call Us</h4><p><a data-setting-href="tel:contact_phone" data-setting-text="contact_phone" href="tel:+918789961355">+91 87899 61355</a></p><span>Mon&ndash;Sat, 9AM &ndash; 6PM</span></div>' +
+                            '<div><h4>Call Us</h4><p><a data-setting-href="tel:contact_phone" data-setting-text="contact_phone" href="tel:+918789961355">+91 87899 61355</a></p>' +
+                            '<p><a data-setting-href="tel:contact_phone_2" data-setting-text="contact_phone_2" href="tel:+918340145191">+91 83401 45191</a></p>' +
+                            '<span data-setting="business_hours">Mon&ndash;Sun, 8AM &ndash; 9PM</span></div>' +
                         '</div>' +
                         '<div class="contact-detail">' +
                             '<div class="contact-detail-icon green"><span class="material-symbols-outlined">chat</span></div>' +
@@ -403,12 +445,20 @@
     }
 
     function mapSection() {
+        const embed = appSettings.contact_map_embed || DEFAULT_MAP_EMBED;
+        const directions = appSettings.google_maps_url || DEFAULT_MAP_URL;
         return '' +
         '<section class="map-section">' +
+            '<div class="container">' +
+                sectionHeader('Find Us', 'Visit our campus', 'We are located in Gamharia, Jamshedpur, and open Monday to Sunday, 8:00 AM \u2013 9:00 PM.', true) +
+            '</div>' +
             '<div class="map-canvas">' +
-                '<div class="map-pin">' +
-                    '<div class="map-card"><strong data-setting="site_name">Global Institute</strong><span data-setting="contact_address">Gamharia Chowk, Jamshedpur</span></div>' +
-                    '<span class="material-symbols-outlined">location_on</span>' +
+                '<iframe id="contact-map-iframe" class="map-iframe" src="' + esc(embed) + '" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen title="Global Institute &amp; CAD CAM location map"></iframe>' +
+            '</div>' +
+            '<div class="container">' +
+                '<div class="map-actions">' +
+                    '<a id="contact-map-link" class="btn btn-primary" href="' + esc(directions) + '" target="_blank" rel="noopener"><span class="material-symbols-outlined">directions</span>Get Directions</a>' +
+                    '<a class="btn btn-outline" data-setting-href="tel:contact_phone" href="tel:+918789961355"><span class="material-symbols-outlined">call</span>Call Now</a>' +
                 '</div>' +
             '</div>' +
         '</section>';
@@ -498,6 +548,16 @@
                 return '<div class="facility-chip reveal"><span class="material-symbols-outlined">' + meta.icon + '</span><div><strong>' + esc(meta.label) + '</strong><span>' + esc(f.capacity ? 'Capacity ' + f.capacity : 'Available') + '</span></div></div>';
             }).join('');
 
+            const softwareTools = ['AutoCAD', 'SolidWorks', 'CATIA', 'Creo', 'NX CAD', 'Fusion 360'];
+            const coreSkills = ['2D & 3D CAD Modeling', 'Mechanical Drafting', 'Engineering Drawing', 'Sheet Metal Design', 'Reverse Engineering', 'CNC Turning & VMC'];
+            const skillCloud = softwareTools.concat(coreSkills)
+                .map(s => '<span class="skill-chip reveal">' + esc(s) + '</span>').join('');
+            const audienceCards = [
+                ['school', 'Who Can Join', 'Diploma, B.Tech and ITI students, plus working professionals who want practical, job-ready technical skills.'],
+                ['workspace_premium', 'What You Get', 'Real industrial projects, interview preparation, resume guidance and placement assistance.'],
+                ['trending_up', 'Career Outcomes', 'Job-ready skills for roles in design, drafting, manufacturing and CNC programming.'],
+            ].map(w => '<div class="why-card reveal"><div class="why-card-icon"><span class="material-symbols-outlined">' + w[0] + '</span></div><div><h3>' + esc(w[1]) + '</h3><p>' + esc(w[2]) + '</p></div></div>').join('');
+
             const app = document.getElementById('app');
             app.innerHTML = '' +
             '<section class="hero">' +
@@ -516,12 +576,8 @@
                         '</div>' +
                     '</div>' +
                     '<div class="hero-visual">' +
-                        '<div class="hero-panel">' +
-                            '<div class="hero-panel-grid blueprint-grid"></div>' +
-                            '<div class="hero-panel-head"><span class="material-symbols-outlined">precision_manufacturing</span><span>Training Environment</span></div>' +
-                            '<div class="hero-panel-chips">' +
-                                facilities.slice(0, 6).map(f => '<span class="hero-chip"><span class="material-symbols-outlined">' + facilityMeta(f.type).icon + '</span>' + esc(f.name) + '</span>').join('') +
-                            '</div>' +
+                        '<div class="hero-visual-card">' +
+                            '<img src="' + BASE_PATH + '/images/og-cover.jpg" alt="Students training on CAD/CAM and CNC equipment at Global Institute, Jamshedpur" width="1200" height="630" loading="eager" decoding="async">' +
                         '</div>' +
                         '<div class="hero-visual-float hero-visual-float-1"><span class="material-symbols-outlined">workspace_premium</span><div><strong>Certified Programs</strong><span>Industry-recognised</span></div></div>' +
                         '<div class="hero-visual-float hero-visual-float-2"><span class="material-symbols-outlined">engineering</span><div><strong>Hands-On Learning</strong><span>Practical training</span></div></div>' +
@@ -561,6 +617,14 @@
                 '<div class="container">' +
                     sectionHeader('Why Us', 'Why students choose our training', 'We combine industry expertise with practical learning to deliver real outcomes.') +
                     '<div class="grid-2">' + whyCards + '</div>' +
+                '</div>' +
+            '</section>' +
+
+            '<section class="section">' +
+                '<div class="container">' +
+                    sectionHeader('Skills & Careers', 'Software & skills you will master', 'Hands-on training across the tools and techniques used in modern mechanical design and manufacturing.') +
+                    '<div class="skill-cloud">' + skillCloud + '</div>' +
+                    '<div class="grid-3 skills-audience">' + audienceCards + '</div>' +
                 '</div>' +
             '</section>' +
 
@@ -673,12 +737,15 @@
         },
 
         async courseDetail(slug) {
-            const course = await Store.course(slug);
+            const [course, allCourses] = await Promise.all([Store.course(slug), Store.courses()]);
             if (!course) return Pages.notFound();
 
             document.title = (course.title || 'Course') + ' | Global Institute & CAD CAM';
             const meta = categoryMeta(course.category_slug);
             const skills = course.skills || [];
+
+            const sameCat = allCourses.filter(c => c.slug !== course.slug && c.category_slug === course.category_slug);
+            const related = (sameCat.length ? sameCat : allCourses.filter(c => c.slug !== course.slug)).slice(0, 3);
 
             const curriculum = skills.map((s, i) =>
                 '<div class="curriculum-card reveal"><span class="material-symbols-outlined">' + (i % 2 ? 'verified' : 'menu_book') + '</span><h3>' + esc(s) + '</h3></div>'
@@ -740,6 +807,14 @@
                     '</div>' +
                 '</section>' +
             '</div>' +
+            (related.length ?
+            '<section class="section section-alt">' +
+                '<div class="container">' +
+                    sectionHeader('Keep Exploring', 'Related programs', 'Other programs that pair well with ' + esc(course.title) + '.') +
+                    '<div class="grid-3">' + related.map(courseCard).join('') + '</div>' +
+                    '<div class="section-cta"><a href="#/courses" class="btn btn-outline" data-link>View all programs <span class="material-symbols-outlined">arrow_forward</span></a></div>' +
+                '</div>' +
+            '</section>' : '') +
             contactSection();
 
             initReveal();
@@ -937,6 +1012,30 @@
             mapSection();
 
             wireForm('contact-enquiry-form');
+        },
+
+        async page(slug) {
+            const pg = await Store.page(slug);
+            if (!pg) return Pages.notFound();
+
+            document.title = pg.seo_title || (pg.title + ' | Global Institute & CAD CAM');
+            const metaDesc = document.querySelector('meta[name="description"]');
+            if (metaDesc && (pg.seo_description || pg.excerpt)) {
+                metaDesc.setAttribute('content', pg.seo_description || pg.excerpt);
+            }
+
+            document.getElementById('app').innerHTML = '' +
+            '<div class="container page-wrap">' +
+                '<nav class="breadcrumb"><a href="#/" data-link>Home</a><span class="material-symbols-outlined">chevron_right</span><span>' + esc(pg.title) + '</span></nav>' +
+                '<article class="cms-page">' +
+                    (pg.featured_image ? '<img class="cms-page-image" src="' + esc(pg.featured_image) + '" alt="' + esc(pg.title) + '" loading="lazy">' : '') +
+                    '<h1 class="cms-page-title">' + esc(pg.title) + '</h1>' +
+                    (pg.excerpt ? '<p class="cms-page-excerpt">' + esc(pg.excerpt) + '</p>' : '') +
+                    '<div class="cms-page-content">' + (pg.content || '') + '</div>' +
+                '</article>' +
+            '</div>';
+
+            initReveal();
         }
     };
 
@@ -1055,6 +1154,25 @@
         onScroll();
     }
 
+    function initScrollProgress() {
+        const bar = document.getElementById('scroll-progress');
+        const toTop = document.getElementById('back-to-top');
+        let ticking = false;
+        const update = () => {
+            const doc = document.documentElement;
+            const max = doc.scrollHeight - doc.clientHeight;
+            const pct = max > 0 ? (doc.scrollTop / max) * 100 : 0;
+            if (bar) bar.style.transform = 'scaleX(' + (pct / 100) + ')';
+            if (toTop) toTop.classList.toggle('visible', doc.scrollTop > 500);
+            ticking = false;
+        };
+        window.addEventListener('scroll', () => {
+            if (!ticking) { ticking = true; window.requestAnimationFrame(update); }
+        }, { passive: true });
+        if (toTop) toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+        update();
+    }
+
     function initGlobalHandlers() {
         document.addEventListener('click', e => {
             const enquiry = e.target.closest('[data-open-enquiry]');
@@ -1078,6 +1196,7 @@
        -------------------------------------------------------- */
     function hydrateSettings(settings) {
         if (!settings) return;
+        appSettings = settings;
         document.querySelectorAll('[data-setting]').forEach(el => {
             const key = el.dataset.setting;
             if (settings[key]) el.textContent = settings[key];
@@ -1102,6 +1221,11 @@
         if (announcementText && settings.enrollment_message) announcementText.textContent = settings.enrollment_message;
         const announcementBar = document.getElementById('announcement-bar');
         if (announcementBar && String(settings.enrollment_open) === '0') announcementBar.style.display = 'none';
+
+        const mapIframe = document.getElementById('contact-map-iframe');
+        if (mapIframe && settings.contact_map_embed) mapIframe.src = settings.contact_map_embed;
+        const mapLink = document.getElementById('contact-map-link');
+        if (mapLink && settings.google_maps_url) mapLink.href = settings.google_maps_url;
     }
 
     function hydrateFooterPrograms(courses) {
@@ -1142,11 +1266,16 @@
     function init() {
         initMobileNav();
         initCompactNav();
+        initScrollProgress();
         initGlobalHandlers();
         initNewsletter();
         wireForm('enquiry-form', { successMessage: 'Enquiry submitted. We will contact you soon.' });
 
         window.addEventListener('hashchange', () => Router.resolve());
+        window.addEventListener('popstate', () => Router.resolve());
+
+        // Failsafe: never leave the loader on screen if something stalls.
+        window.setTimeout(hideLoader, 6000);
 
         // Hydrate shell from API without blocking first paint.
         Promise.all([Store.settings(), Store.courses()]).then(([settings, courses]) => {

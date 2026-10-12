@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CourseApiController;
 use App\Http\Controllers\Api\FacilityApiController;
 use App\Http\Controllers\Api\FaqApiController;
 use App\Http\Controllers\Api\GalleryApiController;
+use App\Http\Controllers\Api\PageApiController;
 use App\Http\Controllers\Api\SettingApiController;
 use App\Http\Controllers\Api\TeacherPublicApiController;
 use App\Http\Controllers\Api\TestimonialApiController;
@@ -26,6 +27,7 @@ Route::get('/api/gallery', [GalleryApiController::class, 'index'])->name('api.ga
 Route::get('/api/faculty', [TeacherPublicApiController::class, 'index'])->name('api.faculty');
 Route::get('/api/facilities', [FacilityApiController::class, 'index'])->name('api.facilities');
 Route::get('/api/announcements', [AnnouncementApiController::class, 'index'])->name('api.announcements');
+Route::get('/api/pages/{slug}', [PageApiController::class, 'show'])->name('api.pages.show');
 Route::get('/api/settings', [SettingApiController::class, 'index'])->name('api.settings');
 Route::post('/api/enquiries', [SpaController::class, 'submitEnquiry'])->name('api.enquiries');
 Route::get('/api/csrf-token', function () {

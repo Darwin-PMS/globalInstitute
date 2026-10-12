@@ -29,7 +29,7 @@ class MaterialController extends Controller
     public function create(Request $request)
     {
         $courses = Course::orderBy('title')->get();
-        $modules = CourseModule::when($request->course_id, fn($q) => $q->where('course_id', $request->course_id))->orderBy('title')->get();
+        $modules = CourseModule::when($request->course_id, fn($q) => $q->where('course_id', $request->course_id))->orderBy('name')->get();
         $lessons = Lesson::when($request->course_id, fn($q) => $q->where('course_id', $request->course_id))->orderBy('title')->get();
         return view('admin.materials.create', compact('courses', 'modules', 'lessons'));
     }
@@ -62,7 +62,7 @@ class MaterialController extends Controller
     public function edit(LearningMaterial $material)
     {
         $courses = Course::orderBy('title')->get();
-        $modules = CourseModule::where('course_id', $material->course_id)->orderBy('title')->get();
+        $modules = CourseModule::where('course_id', $material->course_id)->orderBy('name')->get();
         $lessons = Lesson::where('course_id', $material->course_id)->orderBy('title')->get();
         return view('admin.materials.edit', compact('material', 'courses', 'modules', 'lessons'));
     }

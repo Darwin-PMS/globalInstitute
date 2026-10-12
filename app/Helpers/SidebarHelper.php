@@ -5,6 +5,7 @@ namespace App\Helpers;
 use App\Models\AdminMenu;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Route;
 
 class SidebarHelper
 {
@@ -84,6 +85,16 @@ class SidebarHelper
                         'is_spa' => $menu->is_spa,
                         'target' => $menu->target,
                     ];
+
+                    // Resolve a concrete URL for non-SPA menu items so client-side
+                    // sidebars (the SPA shell) link to the real route instead of a
+                    // guessed route_name -> path conversion.
+                    if (empty($item['url']) && empty($menu->is_spa) && !empty($menu->route_name) && Route::has($menu->route_name)) {
+                        $uri = Route::getRoutes()->getByName($menu->route_name)->uri();
+                        if (strpos($uri, '{') === false) {
+                            $item['url'] = '/' . ltrim($uri, '/');
+                        }
+                    }
 
                     $children = $buildChildren($menu->id);
                     if (count($children) > 0) {

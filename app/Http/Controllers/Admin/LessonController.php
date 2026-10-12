@@ -58,7 +58,7 @@ class LessonController extends Controller
     public function edit(Lesson $lesson)
     {
         $courses = Course::orderBy('title')->get();
-        $modules = CourseModule::where('course_id', $lesson->course_id)->orderBy('title')->get();
+        $modules = CourseModule::where('course_id', $lesson->course_id)->orderBy('name')->get();
         return view('admin.lessons.edit', compact('lesson', 'courses', 'modules'));
     }
 

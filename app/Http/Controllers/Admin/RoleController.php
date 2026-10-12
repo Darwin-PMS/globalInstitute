@@ -22,7 +22,7 @@ class RoleController extends Controller
 
     public function create()
     {
-        $menus = AdminMenu::sidebar()->active()->ordered()->get();
+        $menus = AdminMenu::sidebar()->where('is_active', true)->ordered()->get();
         $groupedPermissions = Permission::active()->grouped()->get()->groupBy('module');
 
         return view('admin.roles.create', compact('menus', 'groupedPermissions'));
@@ -69,6 +69,8 @@ class RoleController extends Controller
 
             app(PermissionService::class)->invalidateAll();
 
+            DB::commit();
+
             return redirect()->route('admin.roles.index')
                 ->with('success', "Role \"{$role->name}\" created successfully.");
         } catch (\Exception $e) {
@@ -80,7 +82,7 @@ class RoleController extends Controller
     public function edit(Role $role)
     {
         $role->load(['permissions', 'menus']);
-        $menus = AdminMenu::sidebar()->active()->ordered()->get();
+        $menus = AdminMenu::sidebar()->where('is_active', true)->ordered()->get();
         $groupedPermissions = Permission::active()->grouped()->get()->groupBy('module');
         $assignedPermSlugs = $role->permissions->pluck('slug')->toArray();
         $assignedMenuIds = $role->menus->pluck('id')->toArray();
@@ -128,6 +130,8 @@ class RoleController extends Controller
 
             app(PermissionService::class)->invalidateAll();
 
+            DB::commit();
+
             return redirect()->route('admin.roles.index')
                 ->with('success', "Role \"{$role->name}\" updated successfully.");
         } catch (\Exception $e) {
@@ -164,9 +168,16 @@ class RoleController extends Controller
 
     public function duplicate(Role $role)
     {
+        $baseSlug = $role->slug . '-copy';
+        $slug = $baseSlug;
+        $i = 2;
+        while (Role::where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $i++;
+        }
+
         $newRole = Role::create([
             'name' => $role->name . ' (Copy)',
-            'slug' => $role->slug . '-copy',
+            'slug' => $slug,
             'description' => $role->description,
         ]);
 

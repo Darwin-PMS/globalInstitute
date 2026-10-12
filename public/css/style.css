@@ -1018,4 +1018,145 @@ a.top-bar-item:hover { color: #fff; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
     .reveal { opacity: 1; transform: none; }
+    .scroll-progress, .back-to-top { transition: none !important; }
 }
+
+/* ============================================================
+   V3 REFINEMENT LAYER — typography, depth, motion, polish
+   ============================================================ */
+html { scroll-behavior: smooth; }
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* ---------- Scroll progress + back to top ---------- */
+.scroll-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--secondary) 0%, var(--secondary-fixed) 100%); transform: scaleX(0); transform-origin: 0 50%; z-index: 300; will-change: transform; }
+.back-to-top { position: fixed; right: 20px; bottom: 24px; z-index: 94; width: 46px; height: 46px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: inline-flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md); border: none; cursor: pointer; opacity: 0; visibility: hidden; transform: translateY(12px); transition: opacity var(--transition-base), transform var(--transition-base), visibility var(--transition-base), background var(--transition-fast); }
+.back-to-top.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+.back-to-top:hover { background: var(--secondary); transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.back-to-top .material-symbols-outlined { font-size: 22px; }
+@media (max-width: 767px) { .back-to-top { bottom: calc(var(--bottom-nav-height) + 72px); right: 16px; } }
+
+/* ---------- Typography rhythm ---------- */
+.section-title { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.15; letter-spacing: -0.02em; }
+.section-desc { font-size: clamp(15px, 1.4vw, 17px); line-height: 1.7; }
+.section-label { display: inline-flex; align-items: center; gap: 8px; background: var(--secondary-container); color: var(--on-secondary-container); padding: 6px 14px; border-radius: 999px; font-weight: 600; margin-bottom: 14px; }
+.section-label::before { display: none; }
+.section-header.center .section-label { margin-left: auto; margin-right: auto; }
+.section { padding-top: clamp(56px, 7vw, 88px); padding-bottom: clamp(56px, 7vw, 88px); }
+
+/* ---------- Page header + breadcrumb polish ---------- */
+.page-header { margin-top: var(--space-md); }
+.page-header h1 { font-family: var(--font-display); font-size: clamp(30px, 4.4vw, 48px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--primary); }
+.page-header p { font-size: clamp(15px, 1.5vw, 17px); line-height: 1.7; color: var(--on-surface-variant); max-width: 680px; margin-top: 12px; }
+.breadcrumb a:hover { color: var(--secondary); }
+
+/* ---------- Hero ---------- */
+.hero { background: radial-gradient(1200px 600px at 80% -10%, #16305a 0%, var(--primary) 45%, #081428 100%); }
+.hero-badge { background: rgba(244,165,28,0.12); border-color: rgba(244,165,28,0.28); }
+.hero-title { font-size: clamp(34px, 5.2vw, 56px); }
+.hero-actions .btn-secondary { box-shadow: 0 10px 30px rgba(244,165,28,0.28); }
+.hero-stats-row { gap: 20px; }
+.hero-stat-value { font-size: 28px; }
+
+/* ---------- Journey accent fix ---------- */
+.journey-step:hover .journey-step-number { background: var(--secondary); box-shadow: 0 6px 18px rgba(217,119,6,0.35); }
+
+/* ---------- Cards: unified depth ---------- */
+.course-card, .category-card, .why-card, .faculty-card, .facility-group, .testimonial-card, .value-card, .process-card, .stat-card, .sidebar-card, .batch-card, .fee-card, .contact-info-card, .contact-form-card, .admission-form-card, .news-item, .mission-card { border-radius: var(--radius-xl); }
+.course-card { border-color: #e6ebf3; }
+.course-card:hover { border-color: transparent; }
+.course-card::before { background: var(--secondary); opacity: 0; transition: opacity var(--transition-base); }
+.course-card:hover::before { opacity: 1; }
+.course-card-badge { background: rgba(11,31,58,0.86); color: #fff; backdrop-filter: blur(6px); }
+.course-card-title a:hover { color: var(--secondary); }
+.course-card-desc { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.course-card-actions .btn { flex: 1; }
+
+/* ---------- Section alt contrast ---------- */
+.section-alt { background: linear-gradient(180deg, var(--surface-container-low) 0%, #ffffff 100%); }
+
+/* ---------- Testimonials ---------- */
+.testimonial-card::before { display: none; }
+.testimonial-quote { position: absolute; top: 20px; right: 22px; font-size: 44px; color: var(--secondary-container); font-variation-settings: 'FILL' 1; opacity: 0.9; }
+.testimonial-card { padding-top: 30px; }
+.testimonial-text { font-style: normal; font-size: 15px; }
+.testimonial-stars { color: var(--secondary-fixed); }
+
+/* ---------- Gallery ---------- */
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.gallery-item { position: relative; border-radius: var(--radius-lg); overflow: hidden; cursor: zoom-in; background: var(--surface-container); aspect-ratio: 4 / 3; }
+.gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s cubic-bezier(0.4,0,0.2,1); }
+.gallery-item:hover img { transform: scale(1.07); }
+.gallery-item:hover .gallery-item-overlay { opacity: 1; }
+
+/* ---------- Forms ---------- */
+.form-input::placeholder { opacity: 0.75; }
+.form-input:hover:not(:focus) { border-color: var(--outline); }
+.form-input:focus { border-color: var(--secondary); box-shadow: 0 0 0 4px rgba(217,119,6,0.14); }
+.form-label { font-weight: 600; }
+
+/* ---------- Faculty ---------- */
+.faculty-card { border-color: #e6ebf3; }
+.faculty-avatar { background: linear-gradient(135deg, #16305a, var(--primary)); box-shadow: 0 8px 20px rgba(11,31,58,0.16); }
+
+/* ---------- Facility groups ---------- */
+.facility-group-head > .material-symbols-outlined { border-radius: var(--radius-lg); }
+
+/* ---------- CTA section ---------- */
+.cta-section { background: radial-gradient(900px 420px at 50% 0%, #16305a 0%, var(--primary) 55%, #081428 100%); }
+
+/* ---------- Site footer polish ---------- */
+.site-footer { background: #08121f; }
+
+/* ---------- Course detail: sticky sidebar ---------- */
+@media (min-width: 1024px) {
+    .course-sidebar { position: sticky; top: calc(var(--nav-height-compact) + 24px); align-self: flex-start; }
+}
+.course-meta-grid { gap: 12px; }
+.course-meta-grid .course-meta-item { flex-direction: column; align-items: flex-start; gap: 4px; background: var(--surface-container-low); border-radius: var(--radius-md); padding: 12px 14px; border-left: 3px solid var(--secondary-fixed); }
+.course-meta-grid .course-meta-item .course-meta-label { font-family: var(--font-label); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--on-surface-variant); }
+.course-hero-media { box-shadow: var(--shadow-lg); }
+
+/* ---------- Mobile breathing room above bottom nav ---------- */
+@media (max-width: 767px) {
+    .site-footer { padding-bottom: calc(var(--bottom-nav-height) + 24px); }
+    .page-wrap { padding-bottom: calc(var(--bottom-nav-height) + 40px); }
+    .section-cta { margin-top: var(--space-lg); }
+}
+
+/* ---------- Buttons: tap targets on mobile ---------- */
+@media (max-width: 767px) {
+    .hero-actions .btn, .section-cta .btn { width: 100%; }
+    .hero-actions, .cta-inner .section-cta { display: flex; flex-direction: column; gap: 12px; }
+}
+
+/* ---------- Empty state spacing ---------- */
+.empty-state p { font-size: 15px; }
+
+/* ---------- Home: software & skills cloud ---------- */
+.skill-cloud { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 2rem; }
+.skill-chip { display: inline-flex; align-items: center; padding: 10px 18px; background: var(--surface-container-lowest); border: 1px solid var(--outline-variant); border-radius: 999px; font-family: var(--font-label); font-size: 12px; font-weight: 600; letter-spacing: 0.03em; color: var(--primary); transition: all var(--transition-fast); }
+.skill-chip:hover { border-color: var(--secondary); color: var(--tertiary); transform: translateY(-2px); }
+.skills-audience { margin-top: 0.5rem; }
+
+/* ---------- Contact: embedded Google map ---------- */
+.map-iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+.map-canvas { height: 420px; }
+.map-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 28px; }
+@media (max-width: 640px) { .map-canvas { height: 320px; } .map-actions .btn { width: 100%; } }
+
+/* ---------- CMS page (custom published Page) ---------- */
+.cms-page { max-width: 820px; }
+.cms-page-image { width: 100%; height: auto; border-radius: var(--radius-lg); margin-bottom: 24px; box-shadow: var(--shadow-md); }
+.cms-page-title { font-family: var(--font-display); font-size: clamp(28px, 4vw, 42px); line-height: 1.15; letter-spacing: -0.02em; color: var(--primary); margin-bottom: 12px; }
+.cms-page-excerpt { font-size: clamp(15px, 1.5vw, 18px); line-height: 1.7; color: var(--on-surface-variant); margin-bottom: 24px; }
+.cms-page-content { font-size: 16px; line-height: 1.8; color: var(--on-surface); }
+.cms-page-content h2 { font-family: var(--font-headline); font-size: clamp(22px, 2.6vw, 30px); line-height: 1.25; color: var(--primary); margin: 32px 0 12px; }
+.cms-page-content h3 { font-family: var(--font-headline); font-size: clamp(18px, 2vw, 22px); color: var(--primary); margin: 24px 0 10px; }
+.cms-page-content p { margin-bottom: 16px; }
+.cms-page-content ul, .cms-page-content ol { margin: 0 0 16px 22px; }
+.cms-page-content li { margin-bottom: 6px; }
+.cms-page-content a { color: var(--secondary); text-decoration: underline; }
+.cms-page-content img { max-width: 100%; height: auto; border-radius: var(--radius-md); }
+.cms-page-content blockquote { border-left: 3px solid var(--secondary); padding: 8px 0 8px 18px; margin: 16px 0; color: var(--on-surface-variant); }
+.cms-page-content table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+.cms-page-content th, .cms-page-content td { border: 1px solid var(--outline-variant); padding: 10px 12px; text-align: left; }

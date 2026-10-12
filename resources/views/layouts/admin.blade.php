@@ -9,6 +9,56 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     @vite('resources/css/app.css')
+    @stack('styles')
+    <style>
+        /* Shared form polish for Blade admin screens (no rebuild required). */
+        .req-mark { color: var(--color-danger); margin-left: 2px; }
+        .form-actionbar {
+            position: sticky;
+            bottom: 0;
+            z-index: 5;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 12px 20px;
+            background: var(--color-surface);
+            border-top: 1px solid var(--color-border);
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            box-shadow: 0 -6px 16px rgba(15, 23, 42, 0.05);
+        }
+        @media (max-width: 767px) {
+            .form-grid-2,
+            .form-grid-3 { grid-template-columns: 1fr; }
+        }
+
+        /* Top-bar account menu */
+        .header-user { padding: 0; border: none; background: none; }
+        .header-user:hover { background: none; border-color: transparent; }
+        .header-user-trigger {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: auto;
+            height: auto;
+            padding: 5px 10px;
+            border-radius: var(--border-radius-sm);
+            border: 1px solid transparent;
+            background: none;
+            cursor: pointer;
+            font: inherit;
+            color: inherit;
+        }
+        .header-user-trigger:hover { background: var(--color-surface-hover); border-color: var(--color-border); }
+        .header-user-trigger .material-symbols-outlined { transition: transform 0.15s ease; }
+        .header-user-trigger[aria-expanded="true"] .material-symbols-outlined { transform: rotate(180deg); }
+        .user-dropdown { min-width: 240px; }
+        .user-dropdown-head { display: flex; align-items: center; gap: 10px; padding: 10px 10px 8px; }
+        .user-dropdown-avatar { width: 38px; height: 38px; font-size: 14px; flex-shrink: 0; }
+        .user-dropdown-meta { display: flex; flex-direction: column; min-width: 0; }
+        .user-dropdown-name { font-size: 13px; font-weight: 600; color: var(--color-text); }
+        .user-dropdown-email { font-size: 12px; color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-dropdown-form { margin: 0; }
+    </style>
 </head>
 <body>
     <div class="admin-layout">
@@ -72,11 +122,7 @@
                 </div>
                 <div class="admin-header-right">
                     <div data-actions>@yield('actions')</div>
-                    <div class="header-user">
-                        <div class="header-user-avatar">A</div>
-                        <span class="header-user-name">Admin</span>
-                        <span class="material-symbols-outlined">expand_more</span>
-                    </div>
+                    @include('partials.admin-user-menu')
                 </div>
             </header>
 
@@ -113,6 +159,11 @@
     </script>
     @stack('scripts')
     <script src="{{ asset('js/lazy-load.js') }}"></script>
+    {{-- Delegated admin widgets. Loaded once here (outside .admin-content) so
+         they survive the partial navigation in resources/js/spa.js, which
+         swaps .admin-content via innerHTML and never executes scripts that
+         arrive with it. --}}
+    <script src="{{ asset('js/admin-widgets.js') }}"></script>
     @vite('resources/js/app.js')
 </body>
 </html>

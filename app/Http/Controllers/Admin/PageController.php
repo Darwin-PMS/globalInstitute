@@ -17,13 +17,29 @@ class PageController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%");
+                  ->orWhere('slug', 'like', "%{$search}%")
+                  ->orWhere('excerpt', 'like', "%{$search}%");
             });
         }
 
-        $pages = $query->latest()->paginate(15);
+        if ($request->filled('status') && in_array($request->status, ['published', 'draft'], true)) {
+            $query->where('status', $request->status);
+        }
 
-        return view('admin.pages.index', compact('pages'));
+        $pages = $query->latest()->paginate(15)->withQueryString();
+
+        // Real counts for the summary bar (soft-deleted rows already excluded).
+        $stats = [
+            'total' => Page::count(),
+            'published' => Page::where('status', 'published')->count(),
+            'draft' => Page::where('status', 'draft')->count(),
+            'needs_seo' => Page::where(function ($q) {
+                $q->whereNull('seo_title')->orWhere('seo_title', '')
+                  ->orWhereNull('seo_description')->orWhere('seo_description', '');
+            })->count(),
+        ];
+
+        return view('admin.pages.index', compact('pages', 'stats'));
     }
 
     public function create()

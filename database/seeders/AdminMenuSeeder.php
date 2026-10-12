@@ -36,7 +36,7 @@ class AdminMenuSeeder extends Seeder
             ],
             ['name' => 'Enquiries', 'slug' => 'enquiries', 'icon' => 'contact_page', 'parent_slug' => 'crm', 'route_name' => 'admin.enquiries.index', 'permission_key' => 'enquiries.view', 'sort_order' => 1, 'is_spa' => true, 'menu_type' => 'sidebar'],
             ['name' => 'Admissions', 'slug' => 'admissions', 'icon' => 'how_to_reg', 'parent_slug' => 'crm', 'route_name' => 'admin.admissions.index', 'permission_key' => 'admissions.view', 'sort_order' => 2, 'menu_type' => 'sidebar'],
-            ['name' => 'Lead Sources', 'slug' => 'lead-sources', 'icon' => 'source', 'parent_slug' => 'crm', 'route_name' => 'admin.lead-sources.index', 'permission_key' => 'lead_sources.view', 'sort_order' => 3, 'menu_type' => 'sidebar'],
+            ['name' => 'Lead Sources', 'slug' => 'lead-sources', 'icon' => 'source', 'parent_slug' => 'crm', 'route_name' => 'admin.lead_sources.index', 'permission_key' => 'lead_sources.view', 'sort_order' => 3, 'menu_type' => 'sidebar'],
 
             // ── Students ─────────────────────────────────
             [
@@ -61,14 +61,14 @@ class AdminMenuSeeder extends Seeder
                 'name' => 'Online Learning', 'slug' => 'learning', 'icon' => 'cast_for_education',
                 'sort_order' => 50, 'is_visible' => false, 'menu_type' => 'sidebar',
             ],
-            ['name' => 'Live Classroom', 'slug' => 'live-classroom', 'icon' => 'live_tv', 'parent_slug' => 'learning', 'route_name' => 'admin.live-classroom', 'permission_key' => 'live_classroom.manage', 'sort_order' => 1, 'is_spa' => true, 'menu_type' => 'sidebar'],
+            ['name' => 'Live Classroom', 'slug' => 'live-classroom', 'icon' => 'live_tv', 'parent_slug' => 'learning', 'route_name' => 'admin.live-classroom.index', 'permission_key' => 'live_classroom.manage', 'sort_order' => 1, 'is_spa' => true, 'menu_type' => 'sidebar'],
             ['name' => 'Schedule Classes', 'slug' => 'online-classes', 'icon' => 'videocam', 'parent_slug' => 'learning', 'route_name' => 'admin.online-classes.index', 'permission_key' => 'online_classes.view', 'sort_order' => 2, 'is_spa' => true, 'menu_type' => 'sidebar'],
             ['name' => 'Lessons', 'slug' => 'lessons', 'icon' => 'menu_book', 'parent_slug' => 'learning', 'route_name' => 'admin.lessons.index', 'permission_key' => 'lessons.view', 'sort_order' => 3, 'is_spa' => true, 'menu_type' => 'sidebar'],
             ['name' => 'Materials', 'slug' => 'materials', 'icon' => 'folder_open', 'parent_slug' => 'learning', 'route_name' => 'admin.materials.index', 'permission_key' => 'materials.view', 'sort_order' => 4, 'is_spa' => true, 'menu_type' => 'sidebar'],
             ['name' => 'Assignments', 'slug' => 'assignments', 'icon' => 'assignment', 'parent_slug' => 'learning', 'route_name' => 'admin.assignments.index', 'permission_key' => 'assignments.view', 'sort_order' => 5, 'is_spa' => true, 'menu_type' => 'sidebar'],
             ['name' => 'Quizzes', 'slug' => 'quizzes', 'icon' => 'quiz', 'parent_slug' => 'learning', 'route_name' => 'admin.quizzes.index', 'permission_key' => 'quizzes.view', 'sort_order' => 6, 'is_spa' => true, 'menu_type' => 'sidebar'],
             ['name' => 'Recordings', 'slug' => 'recordings', 'icon' => 'video_library', 'parent_slug' => 'learning', 'route_name' => 'admin.recordings.index', 'permission_key' => 'recordings.view', 'sort_order' => 7, 'is_spa' => true, 'menu_type' => 'sidebar'],
-            ['name' => 'Progress', 'slug' => 'student-progress', 'icon' => 'trending_up', 'parent_slug' => 'learning', 'route_name' => 'admin.student-progress', 'permission_key' => 'student_progress.view', 'sort_order' => 8, 'menu_type' => 'sidebar'],
+            ['name' => 'Progress', 'slug' => 'student-progress', 'icon' => 'trending_up', 'parent_slug' => 'learning', 'route_name' => 'admin.student-progress.index', 'permission_key' => 'student_progress.view', 'sort_order' => 8, 'menu_type' => 'sidebar'],
 
             // ── Finance ──────────────────────────────────
             [
@@ -83,17 +83,17 @@ class AdminMenuSeeder extends Seeder
                 'name' => 'Reports', 'slug' => 'reports-section', 'icon' => 'assessment',
                 'sort_order' => 70, 'is_visible' => false, 'menu_type' => 'sidebar',
             ],
-            ['name' => 'Reports', 'slug' => 'reports', 'icon' => 'analytics', 'parent_slug' => 'reports-section', 'route_name' => 'admin.reports', 'permission_key' => 'reports.view', 'sort_order' => 1, 'menu_type' => 'sidebar'],
+            ['name' => 'Reports', 'slug' => 'reports', 'icon' => 'analytics', 'parent_slug' => 'reports-section', 'route_name' => 'admin.reports.index', 'permission_key' => 'reports.view', 'sort_order' => 1, 'menu_type' => 'sidebar'],
 
             // ── System ───────────────────────────────────
             [
                 'name' => 'System', 'slug' => 'system', 'icon' => 'settings',
                 'sort_order' => 80, 'is_visible' => false, 'menu_type' => 'sidebar',
             ],
-            ['name' => 'Users', 'slug' => 'users', 'icon' => 'manage_accounts', 'parent_slug' => 'system', 'route_name' => null, 'permission_key' => 'users.view', 'sort_order' => 1, 'is_spa' => false, 'url' => '/admin/users', 'menu_type' => 'sidebar'],
-            ['name' => 'Roles & Permissions', 'slug' => 'roles', 'icon' => 'admin_panel_settings', 'parent_slug' => 'system', 'route_name' => null, 'permission_key' => 'roles.view', 'sort_order' => 2, 'is_spa' => false, 'url' => '/admin/roles', 'menu_type' => 'sidebar'],
-            ['name' => 'Settings', 'slug' => 'settings', 'icon' => 'settings', 'parent_slug' => 'system', 'route_name' => 'admin.settings', 'permission_key' => 'settings.view', 'sort_order' => 3, 'menu_type' => 'sidebar'],
-            ['name' => 'Audit Logs', 'slug' => 'audit-logs', 'icon' => 'history', 'parent_slug' => 'system', 'route_name' => null, 'permission_key' => 'audit_logs.view', 'sort_order' => 4, 'is_spa' => false, 'url' => '/admin/audit-logs', 'menu_type' => 'sidebar'],
+            ['name' => 'Users', 'slug' => 'users', 'icon' => 'manage_accounts', 'parent_slug' => 'system', 'route_name' => 'admin.users.index', 'permission_key' => 'users.view', 'sort_order' => 1, 'is_spa' => false, 'menu_type' => 'sidebar'],
+            ['name' => 'Roles & Permissions', 'slug' => 'roles', 'icon' => 'admin_panel_settings', 'parent_slug' => 'system', 'route_name' => 'admin.roles.index', 'permission_key' => 'roles.view', 'sort_order' => 2, 'is_spa' => false, 'menu_type' => 'sidebar'],
+            ['name' => 'Settings', 'slug' => 'settings', 'icon' => 'settings', 'parent_slug' => 'system', 'route_name' => 'admin.settings.edit', 'permission_key' => 'settings.view', 'sort_order' => 3, 'menu_type' => 'sidebar'],
+            ['name' => 'Audit Logs', 'slug' => 'audit-logs', 'icon' => 'history', 'parent_slug' => 'system', 'route_name' => 'admin.audit-logs.index', 'permission_key' => 'audit_logs.view', 'sort_order' => 4, 'is_spa' => false, 'menu_type' => 'sidebar'],
         ];
 
         $parentMap = [];
@@ -106,6 +106,9 @@ class AdminMenuSeeder extends Seeder
                     [
                         'name' => $item['name'],
                         'icon' => $item['icon'],
+                        'route_name' => $item['route_name'] ?? null,
+                        'url' => $item['url'] ?? null,
+                        'permission_key' => $item['permission_key'] ?? null,
                         'sort_order' => $item['sort_order'],
                         'is_visible' => $item['is_visible'] ?? true,
                         'is_active' => true,

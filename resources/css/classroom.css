@@ -2221,3 +2221,220 @@
         font-size: 17px;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   LIVE CLASSROOM — UI MODERNIZATION (v2 Refresh Layer)
+   Additive overrides only. No layout dimensions are changed.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+    /* Refined, cooler surfaces (translucent → enable glass) */
+    --cr-base: #05070c;
+    --cr-surface: rgba(12,16,24,0.72);
+    --cr-surface-raised: rgba(17,22,33,0.94);
+    --cr-surface-overlay: rgba(21,27,40,0.97);
+    --cr-border: rgba(148,163,184,0.12);
+    --cr-border-subtle: rgba(148,163,184,0.07);
+    --cr-border-strong: rgba(148,163,184,0.2);
+
+    /* Gradient accent system */
+    --cr-accent-a: #6366f1;
+    --cr-accent-b: #8b5cf6;
+    --cr-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --cr-gradient-hover: linear-gradient(135deg, #7073f5 0%, #9b6bf8 100%);
+    --cr-gradient-soft: linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(139,92,246,0.18) 100%);
+    --cr-glow: 0 0 0 1px rgba(99,102,241,0.35), 0 10px 34px -8px rgba(99,102,241,0.5);
+
+    /* Softer, layered elevation */
+    --cr-shadow-sm: 0 1px 2px rgba(0,0,0,0.35), 0 4px 12px -4px rgba(0,0,0,0.45);
+    --cr-shadow-md: 0 2px 6px rgba(0,0,0,0.4), 0 12px 28px -8px rgba(0,0,0,0.55);
+    --cr-shadow-lg: 0 10px 40px -10px rgba(0,0,0,0.7);
+    --cr-shadow-xl: 0 28px 64px -14px rgba(0,0,0,0.8);
+
+    /* Slightly larger, friendlier radii */
+    --cr-radius-sm: 9px;
+    --cr-radius-md: 14px;
+    --cr-radius-lg: 18px;
+    --cr-radius-xl: 24px;
+}
+
+/* ── Ambient background: layered radial glows ─────────────── */
+.cr-shell {
+    background:
+        radial-gradient(1200px 620px at 12% -12%, rgba(99,102,241,0.14), transparent 60%),
+        radial-gradient(1000px 520px at 102% -4%, rgba(139,92,246,0.12), transparent 58%),
+        radial-gradient(900px 620px at 50% 122%, rgba(16,185,129,0.06), transparent 60%),
+        var(--cr-base);
+}
+
+/* ── Glass chrome: header, controls, sidebar, mobile nav ──── */
+.cr-header {
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+.cr-controls {
+    background: var(--cr-surface);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+.cr-sidebar {
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+.cr-mobile-nav {
+    background: rgba(9,13,21,0.86);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+.cr-mobile-sheet-content {
+    background: var(--cr-surface-overlay);
+    backdrop-filter: blur(28px) saturate(150%);
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
+}
+
+/* ── Stage depth ──────────────────────────────────────────── */
+.cr-stage {
+    background:
+        radial-gradient(120% 90% at 50% 0%, rgba(99,102,241,0.05), transparent 70%);
+}
+
+.cr-video-grid {
+    background: radial-gradient(130% 130% at 50% 0%, #0e1322 0%, #05070c 72%);
+}
+
+/* ── Gradient primaries ───────────────────────────────────── */
+.cr-chat-send,
+.cr-join-btn,
+.cr-modal-btn.primary {
+    background: var(--cr-gradient);
+    box-shadow: 0 8px 22px -8px rgba(99,102,241,0.65);
+}
+.cr-chat-send:hover,
+.cr-join-btn:hover,
+.cr-modal-btn.primary:hover {
+    background: var(--cr-gradient-hover);
+}
+.cr-join-btn:hover {
+    box-shadow: 0 12px 28px -8px rgba(99,102,241,0.75);
+}
+
+.cr-switch.on {
+    background: var(--cr-gradient);
+    box-shadow: 0 0 12px -3px rgba(99,102,241,0.8);
+}
+
+/* Active sidebar tab + control buttons */
+.cr-sidebar-tab[aria-selected="true"] {
+    background: var(--cr-gradient-soft);
+    color: var(--cr-indigo-light);
+}
+
+.cr-ctrl-btn.active {
+    background: var(--cr-gradient-soft);
+    color: var(--cr-indigo-light);
+    box-shadow: var(--cr-glow);
+}
+
+/* ── Live / status glow ───────────────────────────────────── */
+.cr-live-badge {
+    box-shadow: 0 0 0 1px var(--cr-green-border), 0 0 20px -5px rgba(16,185,129,0.6);
+}
+.cr-live-dot {
+    box-shadow: 0 0 0 4px rgba(16,185,129,0.16);
+}
+
+.cr-video-tile.speaking {
+    box-shadow: 0 0 0 2.5px var(--cr-indigo-light), 0 0 34px -2px rgba(99,102,241,0.55);
+}
+.cr-strip-tile.speaking {
+    border-color: var(--cr-indigo-light);
+    box-shadow: 0 0 0 1px rgba(99,102,241,0.5), 0 6px 20px -5px rgba(99,102,241,0.5);
+}
+
+/* ── Avatars & accent chips ───────────────────────────────── */
+.cr-avatar-circle,
+.cr-participant-avatar .cr-avatar-sm,
+.cr-resource-icon,
+.cr-empty-icon {
+    background: var(--cr-gradient-soft);
+    box-shadow: inset 0 0 0 1px var(--cr-indigo-border);
+}
+
+.cr-join-ring,
+.cr-waiting-icon {
+    background: var(--cr-gradient-soft);
+    box-shadow: 0 0 44px -10px rgba(99,102,241,0.65);
+}
+
+.cr-online-dot {
+    border-color: #0c1018;
+}
+
+/* ── Chat polish ──────────────────────────────────────────── */
+.cr-chat-msg:not(.mine) .cr-chat-bubble {
+    background: rgba(148,163,184,0.09);
+}
+.cr-chat-msg.mine .cr-chat-bubble {
+    background: var(--cr-gradient);
+    box-shadow: 0 6px 18px -8px rgba(99,102,241,0.75);
+}
+.cr-chat-announcement {
+    background: linear-gradient(135deg, rgba(245,158,11,0.14), rgba(245,158,11,0.08));
+}
+
+/* ── Modals & toasts ──────────────────────────────────────── */
+.cr-modal {
+    box-shadow: var(--cr-shadow-xl), 0 0 0 1px rgba(148,163,184,0.06);
+}
+.cr-modal-backdrop {
+    backdrop-filter: blur(12px) saturate(130%);
+    -webkit-backdrop-filter: blur(12px) saturate(130%);
+}
+
+/* ── Search / inputs focus glow ───────────────────────────── */
+.cr-search:focus-within,
+.cr-chat-input:focus {
+    border-color: var(--cr-indigo-border);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.14);
+}
+
+/* ── Scrollbars (modern, cross-browser) ───────────────────── */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148,163,184,0.28) transparent;
+}
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(148,163,184,0.22);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(148,163,184,0.38);
+    background-clip: padding-box;
+}
+
+/* ── Accessible focus ring ────────────────────────────────── */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(5,7,12,0.9), 0 0 0 4px var(--cr-indigo);
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}

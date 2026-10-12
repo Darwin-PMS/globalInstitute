@@ -2560,3 +2560,207 @@ button[disabled], .btn[disabled], .btn.is-busy {
     .skeleton-table-row { gap: 10px; padding: 12px; }
     .skeleton-chart { height: 150px; gap: 6px; }
 }
+
+/* ========================================
+   Rich text editor (CKEditor 5)
+   ========================================
+   The editor replaces the plain content <textarea> (marked [data-rich-editor]
+   and kept hidden as the form field). These rules only make the widget match
+   the admin form controls; CKEditor ships its own content + toolbar styles. */
+
+.ck.ck-editor {
+    width: 100%;
+}
+
+.ck.ck-editor__top .ck-sticky-panel .ck-toolbar {
+    border-top-left-radius: var(--border-radius-sm);
+    border-top-right-radius: var(--border-radius-sm);
+    border-color: var(--color-border);
+    background: var(--gray-50, #f8fafc);
+}
+
+.ck.ck-editor__main > .ck-editor__editable {
+    min-height: 320px;
+    border-color: var(--color-border);
+    border-bottom-left-radius: var(--border-radius-sm);
+    border-bottom-right-radius: var(--border-radius-sm);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text);
+}
+
+.ck.ck-editor__main > .ck-editor__editable.ck-focused {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
+.ck.ck-editor__main > .ck-editor__editable h2 { font-size: 1.5em; }
+.ck.ck-editor__main > .ck-editor__editable h3 { font-size: 1.25em; }
+.ck.ck-editor__main > .ck-editor__editable h4 { font-size: 1.1em; }
+.ck.ck-editor__main > .ck-editor__editable blockquote {
+    border-left: 3px solid var(--color-primary);
+    margin-left: 0;
+    padding-left: 14px;
+    color: var(--color-text-secondary);
+}
+
+/* Keep the hidden source field out of the layout while the editor is live. */
+textarea[data-rich-editor][data-ck-ready="1"] {
+    display: none;
+}
+
+/* ========================================
+   Pages (CMS index)
+   ========================================
+   Scoped to the Pages screen so the shared table/toolbar primitives stay
+   untouched for every other admin page. */
+
+.pages-count-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    box-shadow: var(--shadow-xs);
+}
+
+.pages-count-chip .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--color-primary);
+}
+
+.pages-result-count {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.pages-table tbody td {
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.pages-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 240px;
+}
+
+.pages-tile {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--gray-100);
+    color: var(--gray-500);
+    transition: var(--transition);
+}
+
+.pages-tile .material-symbols-outlined { font-size: 20px; }
+
+.pages-tile.is-published { background: rgba(107, 254, 156, 0.16); color: #15803d; }
+.pages-tile.is-draft { background: var(--gray-100); color: var(--gray-500); }
+
+.pages-table tbody tr:hover .pages-tile { transform: translateY(-1px); }
+
+.pages-row-main { min-width: 0; }
+
+.pages-row-title {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+    line-height: 1.3;
+    max-width: 340px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pages-row-title:hover { color: var(--color-accent-dark); }
+
+.pages-row-sub {
+    margin-top: 2px;
+    font-size: 12.5px;
+    color: var(--color-text-muted);
+    max-width: 340px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pages-row-empty { font-style: italic; color: var(--gray-400); }
+
+.pages-slug {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    background: var(--gray-50);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    padding: 3px 8px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.pages-seo {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.pages-seo .material-symbols-outlined { font-size: 15px; }
+.pages-seo.is-ok { background: var(--color-success-bg); color: var(--color-success); }
+.pages-seo.is-warn { background: var(--color-warning-bg); color: var(--color-warning); }
+
+.pages-updated {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.pages-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: flex-end;
+}
+
+.pages-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pages-pagination .pagination { margin: 0; }
+
+@media (max-width: 767px) {
+    .pages-row-title,
+    .pages-row-sub { max-width: 200px; }
+
+    .pages-pagination {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

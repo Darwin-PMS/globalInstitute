@@ -75,8 +75,10 @@ class AdminMenu extends Model
 
     public function scopeSidebar($query)
     {
-        return $query->where('menu_type', 'sidebar')
-            ->orWhere('menu_type', 'both');
+        return $query->where(function ($q) {
+            $q->where('menu_type', 'sidebar')
+              ->orWhere('menu_type', 'both');
+        });
     }
 
     // ── Helpers ────────────────────────────────────────────

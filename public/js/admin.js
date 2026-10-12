@@ -194,12 +194,17 @@ function rowActions(pageKey, route, id) {
 
 /* ---- form field builders (design system: .form-group / .form-control) ---- */
 
+/** A red asterisk next to a label when the field is marked `required`. */
+function requiredMark(attrs) {
+    return /\brequired\b/.test(attrs || '') ? '<span class="req-mark" title="Required">*</span>' : '';
+}
+
 function inputField(name, label, value, type, attrs) {
     type = type || 'text';
     var val = (value !== null && value !== undefined) ? escapeHtml(String(value)) : '';
 
     return '<div class="form-group">' +
-        '<label for="f-' + name + '">' + escapeHtml(label) + '</label>' +
+        '<label for="f-' + name + '">' + escapeHtml(label) + requiredMark(attrs) + '</label>' +
         '<input type="' + type + '" id="f-' + name + '" class="form-control" name="' + name + '" value="' + val + '" ' + (attrs || '') + '>' +
         '<p class="form-error" data-error-for="' + name + '" style="display:none;"></p>' +
         '</div>';
@@ -207,7 +212,7 @@ function inputField(name, label, value, type, attrs) {
 
 function selectField(name, label, value, options, attrs) {
     var html = '<div class="form-group">' +
-        '<label for="f-' + name + '">' + escapeHtml(label) + '</label>' +
+        '<label for="f-' + name + '">' + escapeHtml(label) + requiredMark(attrs) + '</label>' +
         '<select id="f-' + name + '" class="form-control" name="' + name + '" ' + (attrs || '') + '>' +
         '<option value="">— Select —</option>';
 
@@ -227,7 +232,7 @@ function textareaField(name, label, value, attrs) {
     var val = (value !== null && value !== undefined) ? escapeHtml(String(value)) : '';
 
     return '<div class="form-group">' +
-        '<label for="f-' + name + '">' + escapeHtml(label) + '</label>' +
+        '<label for="f-' + name + '">' + escapeHtml(label) + requiredMark(attrs) + '</label>' +
         '<textarea id="f-' + name + '" class="form-control" name="' + name + '" rows="4" ' + (attrs || '') + '>' + val + '</textarea>' +
         '<p class="form-error" data-error-for="' + name + '" style="display:none;"></p>' +
         '</div>';
@@ -644,14 +649,24 @@ function GenericListPage(config) {
         '<div class="search-wrap">' +
         '<span class="material-symbols-outlined">search</span>' +
         '<input type="search" class="search-input" id="search-input" placeholder="Search ' + escapeHtml(config.title.toLowerCase()) + '…" aria-label="Search">' +
+        '<button type="button" class="search-clear" id="search-clear" style="display:none;" aria-label="Clear search">' +
+        '<span class="material-symbols-outlined">close</span></button>' +
         '</div>' +
         filterHtml +
         '</div>' +
-        '<div class="toolbar-right"><span class="pagination-info" id="result-count"></span></div>' +
+        '<div class="toolbar-right">' +
+        '<span class="pagination-info" id="result-count"></span>' +
+        '<button type="button" class="icon-btn" id="list-refresh" title="Refresh" aria-label="Refresh list">' +
+        '<span class="material-symbols-outlined">refresh</span></button>' +
+        '</div>' +
         '</div>' +
         '<div id="list-body">' + skeletonRows(6) + '</div>';
 
-    document.getElementById('search-input').addEventListener('input', function (e) {
+    var searchInput = document.getElementById('search-input');
+    var searchClear = document.getElementById('search-clear');
+
+    searchInput.addEventListener('input', function (e) {
+        if (searchClear) searchClear.style.display = e.target.value ? 'flex' : 'none';
         clearTimeout(searchTimer);
         var value = e.target.value;
         searchTimer = setTimeout(function () {
@@ -659,6 +674,21 @@ function GenericListPage(config) {
             state.page = 1;
             load();
         }, 350);
+    });
+
+    if (searchClear) {
+        searchClear.addEventListener('click', function () {
+            searchInput.value = '';
+            state.search = '';
+            state.page = 1;
+            searchClear.style.display = 'none';
+            searchInput.focus();
+            load();
+        });
+    }
+
+    document.getElementById('list-refresh').addEventListener('click', function () {
+        load();
     });
 
     if (config.filterOptions) {
@@ -803,13 +833,13 @@ function renderForm(config, item, mode, id) {
 
     content.innerHTML =
         pageHeader(heading, config.description) +
-        '<div class="card">' +
+        '<div class="card" style="overflow:visible;">' +
         '<form id="resource-form" novalidate>' +
         '<div class="card-body">' +
         '<div class="form-grid-2">' + config.formFields(item) + '</div>' +
         '<div id="form-alert" style="display:none;margin-top:16px;"></div>' +
         '</div>' +
-        '<div class="card-footer" style="display:flex;justify-content:flex-end;gap:8px;">' +
+        '<div class="form-actionbar">' +
         '<a href="#/' + config.route + '" class="btn btn-outline btn-sm">Cancel</a>' +
         '<button type="submit" class="btn btn-primary btn-sm" id="form-submit">' +
         '<span class="material-symbols-outlined" style="font-size:18px;">check</span> ' +
@@ -1467,63 +1497,124 @@ function DashboardPage() {
     AdminApp.setTitle('Dashboard');
     AdminApp.setActions('');
 
+    var userName = (window.AdminConfig && window.AdminConfig.user && window.AdminConfig.user.name) || 'Admin';
+    var today = new Date().toLocaleDateString('en-IN', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+
     content.innerHTML =
         '<div class="dashboard-welcome"><div class="dashboard-welcome-content">' +
-        '<h1>Welcome back, ' + escapeHtml((window.AdminConfig && window.AdminConfig.user.name) || 'Admin') + '</h1>' +
+        '<div class="dashboard-welcome-head">' +
+        '<div>' +
+        '<h1>Welcome back, ' + escapeHtml(userName) + '</h1>' +
         '<p>Here\'s what\'s happening with your institute today.</p>' +
+        '</div>' +
+        '<span class="dashboard-welcome-date">' +
+        '<span class="material-symbols-outlined">calendar_today</span>' + escapeHtml(today) +
+        '</span>' +
+        '</div>' +
         '</div></div>' +
         '<div id="dash-stats">' + skeletonStats(6) + '</div>' +
-        '<div id="dash-panels" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;"></div>';
+        '<div id="dash-panels" class="dash-grid"></div>';
 
     Api.get('/dashboard').then(function (data) {
         var stats = [
-            { icon: 'person', tone: 'primary', value: data.totalStudents || 0, label: 'Total Students' },
-            { icon: 'groups', tone: 'warning', value: data.totalTeachers || 0, label: 'Total Teachers' },
-            { icon: 'calendar_month', tone: 'info', value: data.activeBatches || 0, label: 'Active Batches' },
+            { icon: 'person', tone: 'primary', value: data.totalStudents || 0, label: 'Total Students', link: '#/students' },
+            { icon: 'groups', tone: 'warning', value: data.totalTeachers || 0, label: 'Total Teachers', link: '#/teachers' },
+            { icon: 'calendar_month', tone: 'info', value: data.activeBatches || 0, label: 'Active Batches', link: '#/batches' },
             { icon: 'paid', tone: 'success', value: '₹' + Number(data.totalRevenue || 0).toLocaleString('en-IN'), label: 'Total Revenue' },
-            { icon: 'how_to_reg', tone: 'primary', value: data.thisMonthAdmissions || 0, label: 'Admissions This Month' },
-            { icon: 'pending', tone: 'warning', value: data.pendingEnquiries || 0, label: 'Pending Enquiries' }
+            { icon: 'how_to_reg', tone: 'primary', value: data.thisMonthAdmissions || 0, label: 'Admissions This Month', link: '#/students' },
+            { icon: 'pending', tone: 'warning', value: data.pendingEnquiries || 0, label: 'Pending Enquiries', link: '#/enquiries' }
         ];
 
         var statsHost = document.getElementById('dash-stats');
-        statsHost.className = 'stats-bar';
-        statsHost.innerHTML = stats.map(function (s) {
-            return '<div class="stat-item">' +
-                '<div class="stat-item-icon ' + s.tone + '"><span class="material-symbols-outlined">' + s.icon + '</span></div>' +
-                '<div><div class="stat-item-value">' + escapeHtml(String(s.value)) + '</div>' +
-                '<div class="stat-item-label">' + escapeHtml(s.label) + '</div></div></div>';
-        }).join('');
+        if (statsHost) {
+            statsHost.className = 'stats-bar';
+            statsHost.innerHTML = stats.map(function (s) {
+                var body =
+                    '<div class="stat-item-icon ' + s.tone + '"><span class="material-symbols-outlined">' + s.icon + '</span></div>' +
+                    '<div><div class="stat-item-value">' + escapeHtml(String(s.value)) + '</div>' +
+                    '<div class="stat-item-label">' + escapeHtml(s.label) + '</div></div>' +
+                    (s.link ? '<span class="material-symbols-outlined stat-arrow">arrow_forward</span>' : '');
+                return s.link
+                    ? '<a class="stat-item" href="' + s.link + '">' + body + '</a>'
+                    : '<div class="stat-item">' + body + '</div>';
+            }).join('');
+        }
 
         var payments = data.recentPayments || data.recent_payments || [];
         var enquiries = data.recentEnquiries || data.recent_enquiries || [];
 
-        document.getElementById('dash-panels').innerHTML =
-            panel('Recent Payments', 'payments', payments, function (p) {
-                var name = (p.student && p.student.user && p.student.user.name) || p.name || 'N/A';
-                return listRow('paid', 'var(--color-success)', name, p.payment_id || '',
-                    '<p style="font-size:14px;font-weight:600;color:var(--color-success);font-family:\'JetBrains Mono\',monospace;">₹' +
-                    Number(p.amount || 0).toLocaleString('en-IN') + '</p>');
-            }, 'Payment records will appear here.') +
-            panel('Recent Enquiries', 'contact_page', enquiries, function (e) {
-                return listRow('contact_page', 'var(--color-primary)', e.name || 'N/A', e.phone || e.email || '',
-                    statusBadge(e.status));
-            }, 'New enquiries will appear here.');
+        // Only surface shortcuts the signed-in user can actually reach.
+        var quickActions = [
+            { href: '#/courses/create', icon: 'library_add', label: 'Add Course', slug: 'courses' },
+            { href: '#/teachers/create', icon: 'person_add', label: 'Add Teacher', slug: 'teachers' },
+            { href: '#/batches/create', icon: 'event_available', label: 'New Batch', slug: 'batches' },
+            { href: '#/online-classes/create', icon: 'videocam', label: 'Schedule Class', slug: 'online-classes' },
+            { href: '#/students', icon: 'groups', label: 'View Students', slug: 'students' },
+            { href: '#/enquiries', icon: 'mark_email_unread', label: 'Check Enquiries', slug: 'enquiries' }
+        ].filter(function (a) { return sidebarHas(a.slug); });
+
+        var panelsHost = document.getElementById('dash-panels');
+        if (panelsHost) {
+            panelsHost.innerHTML =
+                quickActionsPanel(quickActions) +
+                listPanel({
+                    title: 'Recent Payments', icon: 'payments', items: payments,
+                    emptyText: 'Payment records will appear here.',
+                    rowFn: function (p) {
+                        var name = (p.student && p.student.user && p.student.user.name) || p.name || 'N/A';
+                        return listRow('paid', 'var(--color-success)', name, p.payment_id || '',
+                            '<p style="font-size:14px;font-weight:600;color:var(--color-success);font-family:\'JetBrains Mono\',monospace;">₹' +
+                            Number(p.amount || 0).toLocaleString('en-IN') + '</p>');
+                    }
+                }) +
+                listPanel({
+                    title: 'Recent Enquiries', icon: 'contact_page', items: enquiries,
+                    emptyText: 'New enquiries will appear here.', viewHref: '#/enquiries',
+                    rowFn: function (e) {
+                        return listRow('contact_page', 'var(--color-primary)', e.name || 'N/A', e.phone || e.email || '',
+                            statusBadge(e.status));
+                    }
+                });
+        }
     }).catch(function (err) {
         if (err.message === 'Session expired') return;
         content.innerHTML = errorState('Unable to load the dashboard. ' + err.message, 'DashboardPage');
     });
 
-    function panel(title, icon, items, rowFn, emptyText) {
-        var html = '<div class="card"><div class="dashboard-section-header"><h3>' + escapeHtml(title) + '</h3></div>';
+    function quickActionsPanel(actions) {
+        if (!actions.length) return '';
+        return '<div class="card">' +
+            '<div class="dashboard-section-header"><h3>Quick Actions</h3></div>' +
+            '<div class="dash-quick-grid">' +
+            actions.map(function (a) {
+                return '<a href="' + a.href + '" class="dash-quick-tile">' +
+                    '<span class="material-symbols-outlined">' + a.icon + '</span>' +
+                    '<span>' + escapeHtml(a.label) + '</span></a>';
+            }).join('') +
+            '</div></div>';
+    }
 
-        if (!items || !items.length) {
-            html += '<div class="empty-state" style="padding:32px;">' +
-                '<span class="material-symbols-outlined" style="font-size:40px;">' + icon + '</span>' +
-                '<h3>Nothing yet</h3><p>' + escapeHtml(emptyText) + '</p></div>';
-        } else {
-            items.slice(0, 5).forEach(function (item) { html += rowFn(item); });
+    function listPanel(opts) {
+        var items = opts.items || [];
+        var header = '<div class="dashboard-section-header"><h3>' + escapeHtml(opts.title) + '</h3>';
+        if (opts.viewHref) {
+            header += '<a href="' + opts.viewHref + '">View all ' +
+                '<span class="material-symbols-outlined" style="font-size:15px;vertical-align:-3px;">arrow_forward</span></a>';
+        } else if (items.length) {
+            header += '<span class="dash-panel-count">' + items.length + '</span>';
         }
+        header += '</div>';
 
+        var html = '<div class="card">' + header;
+        if (!items.length) {
+            html += '<div class="empty-state" style="padding:32px;">' +
+                '<span class="material-symbols-outlined" style="font-size:40px;">' + opts.icon + '</span>' +
+                '<h3>Nothing yet</h3><p>' + escapeHtml(opts.emptyText) + '</p></div>';
+        } else {
+            items.slice(0, 5).forEach(function (item) { html += opts.rowFn(item); });
+        }
         return html + '</div>';
     }
 
@@ -1540,9 +1631,58 @@ function DashboardPage() {
     }
 }
 
+/**
+ * True when the signed-in user's sidebar exposes `slug`. Before the sidebar
+ * has loaded (NAV_SECTIONS === null) we optimistically allow the link so the
+ * dashboard still offers shortcuts if the sidebar API is slow.
+ */
+function sidebarHas(slug) {
+    if (!NAV_SECTIONS) return true;
+    return NAV_SECTIONS.some(function (section) {
+        return (section.children || []).some(function (child) { return child.slug === slug; });
+    });
+}
+
 /* ----------------------------------------------------------
    10. Boot
    ---------------------------------------------------------- */
+
+/**
+ * Delegated account/dropdown menus. Delegated so it also covers menus inside
+ * content swapped by the partial navigation. On Blade pages the same markup is
+ * handled by public/js/admin-widgets.js; here it drives the SPA top bar.
+ */
+function closeSpaMenus() {
+    Array.prototype.forEach.call(document.querySelectorAll('.action-dropdown.open'), function (dropdown) {
+        dropdown.classList.remove('open');
+        var menu = dropdown.closest('.action-menu');
+        var trigger = menu ? menu.querySelector('.action-menu-trigger') : null;
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    });
+}
+
+document.addEventListener('click', function (e) {
+    var trigger = e.target.closest('.action-menu-trigger');
+
+    if (trigger && !trigger.onclick) {
+        var menu = trigger.closest('.action-menu');
+        var dropdown = menu ? menu.querySelector('.action-dropdown') : null;
+        if (dropdown) {
+            var willOpen = !dropdown.classList.contains('open');
+            closeSpaMenus();
+            if (willOpen) dropdown.classList.add('open');
+            trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+            return;
+        }
+    }
+
+    if (!e.target.closest('.action-menu')) closeSpaMenus();
+});
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeSpaMenus();
+});
+
 document.addEventListener('DOMContentLoaded', function () {
     AdminApp.init();
 });
